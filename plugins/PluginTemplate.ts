@@ -7,13 +7,26 @@
  */
 console.log(df, ui);
 
+import {
+  html,
+  render,
+  //@ts-ignore
+} from 'https://unpkg.com/htm/preact/standalone.module.js';
+//@ts-ignore
+
 class PluginTemplate implements DFPlugin {
   constructor() {}
 
   /**
    * Called when plugin is launched with the "run" button.
    */
-  async render(container: HTMLDivElement) {}
+  async render(container: HTMLDivElement) {
+
+    render(
+        html`14423`,
+        container
+    );
+  }
 
   /**
    * Called when plugin modal is closed.
