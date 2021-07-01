@@ -366,6 +366,10 @@ class EthConnection extends EventEmitter {
         );
         await sleep(sleepTime);
         tries += 1;
+        if (sleepTime == 60000) {
+          resolve(undefined);
+          return;
+        }
       }
     });
   }
