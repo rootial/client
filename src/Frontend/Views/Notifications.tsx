@@ -31,6 +31,7 @@ const StyledNotification = styled.div`
   display: flex;
   flex-direction: row-reverse;
   justify-content: flex-start;
+  z-index: 999999;
 
   & > div.n-icon {
     width: ${NOTIF_SIZE};

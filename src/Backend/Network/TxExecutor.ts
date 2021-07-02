@@ -54,7 +54,7 @@ export class TxExecutor extends EventEmitter {
   constructor(ethConnection: EthConnection, nonce: number) {
     super();
 
-    this.txQueue = new ThrottledConcurrentQueue(3, 1000, 1);
+    this.txQueue = new ThrottledConcurrentQueue(3, 1000, 3);
     this.nonce = nonce;
     this.lastTransaction = Date.now();
     this.eth = ethConnection;
@@ -174,8 +174,10 @@ export class TxExecutor extends EventEmitter {
       this.lastTransaction = time_submitted;
       txRequest.onTransactionResponse(submitted);
 
+      console.log('start to wait for while execution');
       const confirmed = await this.eth.waitForTransaction(submitted.hash);
       time_confirmed = Date.now();
+      console.log('confirmed', confirmed, time_confirmed);
       txRequest.onTransactionReceipt(confirmed);
 
       if (confirmed.status !== 1) {

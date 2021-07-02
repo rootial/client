@@ -700,6 +700,7 @@ class GameManager extends EventEmitter {
 
     for (const unconfirmedTx of unconfirmedTxs) {
       // recommits the tx to storage but whatever
+      console.log('try to add unconfirmed tx to wait for', unconfirmedTx);
       gameManager.contractsAPI.waitFor(
         unconfirmedTx,
         confirmationQueue.add(() => ethConnection.waitForTransaction(unconfirmedTx.txHash))

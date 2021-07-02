@@ -340,7 +340,6 @@ function App() {
       <${Untaken} selected=${tab === 'untaken'} />
     </div>
     <div>
-      <span>Auto:</span>
       <${AutoButton} onText="Cancel Prospect" offText="Prospect" loop=${prospectArtifacts} />
       <${AutoButton} onText="Cancel Find" offText="Find" loop=${findArtifacts} />
     </div>
