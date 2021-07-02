@@ -134,7 +134,8 @@ function receiveRessources(fromId, maxDistributeEnergyPercent, minPLevel, maxPle
         .sort((a, b) => a[1] - b[1]);
 
     let i = 0;
-    const maxEnergy = Math.floor(from.energyCap -from.energy);
+    // if it's unclaimed, max energy is from.energyCap + from.energy
+    const maxEnergy = Math.floor(from.owner !== df.getAccount() ? from.energyCap + from.energy : from.energyCap -from.energy);
     const maxSilver = Math.floor(from.silverCap -from.silver);
 
     let energyReceived = 0;
@@ -153,8 +154,8 @@ function receiveRessources(fromId, maxDistributeEnergyPercent, minPLevel, maxPle
         }
 
         const energyBudget = Math.floor((maxDistributeEnergyPercent / 100) * candidate.energy);
-
-        const maxReceivedEnergyForMove = Math.ceil(df.getEnergyArrivingForMove(candidate.locationId, fromId, energyBudget));
+        const dist = df.getDist(from.locationId, candidate.locationId);
+        const maxReceivedEnergyForMove = Math.ceil(df.getEnergyArrivingForMove(candidate.locationId, fromId, dist, energyBudget));
         // only send enough energy to cap planet
         const receivedEnergyForMove = Math.ceil(maxEnergy - energyReceived - maxReceivedEnergyForMove >= 0? maxReceivedEnergyForMove: maxEnergy - energyReceived);
         // only send enough silver to cap planet
