@@ -1,8 +1,7 @@
-import {move} from 'https://gistcdn.githack.com/rootial/ca33e35501b8edc00fa918d40fb15731/raw/f855bcd2a24bd2ea8bfb092d697d20112f94ce92/queued_move.js';
-
 class Plugin {
     constructor() {
         this.minPlanetLevel = 3;
+        this.maxLevelToUse = 5;
         this.maxEnergyPercent = 85;
         this.mustHaveArtifact = true;
     }
@@ -61,6 +60,32 @@ class Plugin {
             }
         }
 
+
+        let maxLevelToUseLabel = document.createElement('label');
+        maxLevelToUseLabel.innerText = 'Max. planet level to use';
+        maxLevelToUseLabel.style.display = 'block';
+
+        let maxLevelToUse = document.createElement('select');
+        maxLevelToUse.style.background = 'rgb(8,8,8)';
+        maxLevelToUse.style.width = '100%';
+        maxLevelToUse.style.marginTop = '10px';
+        maxLevelToUse.style.marginBottom = '10px';
+        [0, 1, 2, 3, 4, 5, 6, 7].forEach(lvl => {
+            let opt = document.createElement('option');
+            opt.value = `${lvl}`;
+            opt.innerText = `Level ${lvl}`;
+            maxLevelToUse.appendChild(opt);
+        });
+        maxLevelToUse.value = `${this.maxLevelToUse}`;
+
+        maxLevelToUse.onchange = (evt) => {
+            try {
+                this.maxLevelToUse = parseInt(evt.target.value);
+            } catch (e) {
+                console.error('could not parse planet maxLevel', e);
+            }
+        }
+
         let mustHaveArtifactLabel = document.createElement('label');
         mustHaveArtifactLabel.innerText = 'Only artifact';
 
@@ -105,6 +130,8 @@ class Plugin {
 
             let moves = 0;
             for (let planet of df.getMyPlanets()) {
+                // filter out the planet level above this.maxLevelToUse
+                if (planet.planetLevel > this.maxLevelToUse) continue;
                 setTimeout(() => {
                     moves += capturePlanets(
                         planet.locationId,
@@ -121,7 +148,9 @@ class Plugin {
         container.appendChild(stepper);
         container.appendChild(percent);
         container.appendChild(levelLabel);
-        container.appendChild(level);
+        container.appendChild(level);       
+        container.appendChild(maxLevelToUseLabel);
+        container.appendChild(maxLevelToUse);
         container.appendChild(mustHaveArtifactLabel);
         container.appendChild(mustHaveArtifactCheck);
         container.appendChild(button);
@@ -187,7 +216,7 @@ function capturePlanets(fromId, minCaptureLevel, maxDistributeEnergyPercent, mus
         }
 
         setTimeout(() => {
-            move(fromId, candidate.locationId, energyNeeded, 0);
+            df.move(fromId, candidate.locationId, energyNeeded, 0);
         }, 10);
         energySpent += energyNeeded;
         moves += 1;
