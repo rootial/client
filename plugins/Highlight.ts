@@ -97,10 +97,6 @@ function CreateSelectFilter({
   items,
   selectedValue,
   onSelect,
-}: {
-  items: { value: number; text: string }[];
-  selectedValue: number;
-  onSelect: (value: number) => void;
 }) {
   const selectStyle = {
     background: "rgb(8,8,8)",
@@ -114,7 +110,7 @@ function CreateSelectFilter({
     <select
       style=${selectStyle}
       value=${selectedValue}
-      onChange=${(e: any) => onSelect(Number(e.target.value))}
+      onChange=${(e) => onSelect(Number(e.target.value))}
     >
       ${items.map(
         ({ value, text }) => html`<option value=${value}>${text}</option>`
@@ -127,10 +123,6 @@ function LevelFilter({
   levels,
   selectedLevels,
   onSelectLevel,
-}: {
-  levels: { value: number; text: string }[];
-  selectedLevels: number[];
-  onSelectLevel: (level: number) => void;
 }) {
   const buttonStyle = {
     border: "1px solid #ffffff",
@@ -164,11 +156,6 @@ function LevelFilter({
     text,
     onClick,
     selected = false,
-  }: {
-    value: number;
-    text: string;
-    selected: boolean;
-    onClick: (value: number) => void;
   }) => html`
     <div
       style=${selected ? buttonSelectedStyle : buttonStyle}
@@ -177,7 +164,7 @@ function LevelFilter({
       ${text}
     </div>
   `;
-  const inRange = (value: number) =>
+  const inRange = (value) =>
     value <= Math.max(...selectedLevels) &&
     value >= Math.min(...selectedLevels);
   return html`
@@ -198,7 +185,7 @@ function LevelFilter({
 let eligiblePlanets = [];
 
 function App({}) {
-  const [selectedLevels, setSelectedLevels] = useState<[]>([0, 7]);
+  const [selectedLevels, setSelectedLevels] = useState([0, 7]);
   const [selectedPlanetType, setSelectedPlanetType] = useState(-1);
   const [selectedArtifactType, setSelectedArtifactType] = useState(-1);
   const [selectedArtifactRarity, setSelectedArtifactRarity] = useState(-1);
@@ -223,12 +210,7 @@ function App({}) {
       ) {
         continue;
       }
-      if (
-        planet.locationId ===
-        "0000a570000b1776570d1bc61f2fc7819541f1e19f267b755f7821296e065b4b"
-      ) {
-        console.log("planet");
-      }
+
       // check planet type
       if (
         selectedPlanetType !== PLANET_ANY_TYPE &&
@@ -274,13 +256,11 @@ function App({}) {
     <${LevelFilter}
       levels=${PLANET_LEVELS}
       selectedLevels=${selectedLevels}
-      onSelectLevel=${(level: number) => {
+      onSelectLevel=${(level) => {
         if (selectedLevels.length == 2) {
           setSelectedLevels([level]);
-          console.log("new level ", [level]);
         } else {
           setSelectedLevels([level, selectedLevels[0]]);
-          console.log("new level ", [level, selectedLevels[0]]);
         }
       }}
     />`;
@@ -315,7 +295,7 @@ function App({}) {
       />
     </div>
   </div>`;
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
 
   const highlightPlanet = () => {
     setLoading(true);
@@ -352,8 +332,8 @@ function App({}) {
 }
 
 //@ts-ignore
-class Plugin implements DFPlugin {
-  draw(ctx: CanvasRenderingContext2D) {
+class Plugin {
+  draw(ctx) {
     // @ts-ignore
     const viewport = ui.getViewport();
 
@@ -380,7 +360,7 @@ class Plugin implements DFPlugin {
     ctx.restore();
   }
 
-  async render(container: HTMLDivElement) {
+  async render(container) {
     render(html`<${App} />`, container);
   }
 }
