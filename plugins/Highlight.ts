@@ -93,11 +93,7 @@ const ARTIFACT_RARITIES = [
   },
 ];
 
-function CreateSelectFilter({
-  items,
-  selectedValue,
-  onSelect,
-}) {
+function CreateSelectFilter({ items, selectedValue, onSelect }) {
   const selectStyle = {
     background: "rgb(8,8,8)",
     width: "120px",
@@ -119,11 +115,7 @@ function CreateSelectFilter({
   `;
 }
 
-function LevelFilter({
-  levels,
-  selectedLevels,
-  onSelectLevel,
-}) {
+function LevelFilter({ levels, selectedLevels, onSelectLevel }) {
   const buttonStyle = {
     border: "1px solid #ffffff",
     display: "inline-flex",
@@ -151,12 +143,7 @@ function LevelFilter({
     flexDirection: "row",
   };
 
-  const button = ({
-    value,
-    text,
-    onClick,
-    selected = false,
-  }) => html`
+  const button = ({ value, text, onClick, selected = false }) => html`
     <div
       style=${selected ? buttonSelectedStyle : buttonStyle}
       onClick=${() => onClick(value)}
@@ -181,6 +168,48 @@ function LevelFilter({
   `;
 }
 
+function createDivider() {
+  const dividerStyle = {
+    width: "100%",
+    border: "0.1px solid white",
+    margin: "20px 0",
+    height: 0,
+  };
+
+  return html`<div style=${dividerStyle}></div> `;
+}
+
+function createButton({ loading, onClick }) {
+  const buttonStyle = {
+    // margin: "10px 0",
+    background: "rgb(8,8,8)",
+    width: "180px",
+    padding: "3px 5px",
+    border: "1px solid white",
+    borderRadius: "6px",
+    textAlign: "center",
+  };
+
+  const hoverStyle = {
+    color: "#080808",
+    background: "#ffffff",
+  };
+
+  const [hover, setHover] = useState(false);
+  return html` <button
+    disabled=${loading}
+    style=${{
+      ...buttonStyle,
+      ...(hover ? hoverStyle : {}),
+    }}
+    onClick=${onClick}
+    onMouseEnter=${() => setHover(true)}
+    onMouseLeave=${() => setHover(false)}
+  >
+    Start Highlight
+  </button>`;
+}
+
 // @ts-ignore
 let eligiblePlanets = [];
 
@@ -189,6 +218,8 @@ function App({}) {
   const [selectedPlanetType, setSelectedPlanetType] = useState(-1);
   const [selectedArtifactType, setSelectedArtifactType] = useState(-1);
   const [selectedArtifactRarity, setSelectedArtifactRarity] = useState(-1);
+  const [mustHoldArtifacts, setMustHoldArtifacts] = useState(true);
+  const [isOwner, setIsOwner] = useState(true);
 
   // @ts-ignore
   const usePlanetArtifacts = useCallback((planet) => {
@@ -211,6 +242,10 @@ function App({}) {
         continue;
       }
 
+      if (isOwner && planet.owner !== df.getAccount()) {
+        continue;
+      }
+
       // check planet type
       if (
         selectedPlanetType !== PLANET_ANY_TYPE &&
@@ -218,23 +253,28 @@ function App({}) {
       ) {
         continue;
       }
-      let artifacts = usePlanetArtifacts(planet);
-      // check planet must have artifact of specific type and rarity
-      if (selectedArtifactType !== ARTIFACT_ANY_TYPE) {
-        // @ts-ignore
-        artifacts = artifacts.filter(
-          (artifact) => artifact.artifactType === selectedArtifactType
-        );
-      }
 
-      if (selectedArtifactRarity !== ARTIFACT_ANY_RARITY) {
-        // @ts-ignore
-        artifacts = artifacts.filter(
-          (artifact) => artifact.rarity === selectedArtifactRarity
-        );
-      }
-      if (artifacts.length > 0) {
+      if (!mustHoldArtifacts) {
         planets.push(planet);
+      } else {
+        let artifacts = usePlanetArtifacts(planet);
+        // check planet must have artifact of specific type and rarity
+        if (selectedArtifactType !== ARTIFACT_ANY_TYPE) {
+          // @ts-ignore
+          artifacts = artifacts.filter(
+            (artifact) => artifact.artifactType === selectedArtifactType
+          );
+        }
+
+        if (selectedArtifactRarity !== ARTIFACT_ANY_RARITY) {
+          // @ts-ignore
+          artifacts = artifacts.filter(
+            (artifact) => artifact.rarity === selectedArtifactRarity
+          );
+        }
+        if (artifacts.length > 0) {
+          planets.push(planet);
+        }
       }
     }
     return planets;
@@ -243,11 +283,14 @@ function App({}) {
     selectedPlanetType,
     selectedArtifactType,
     selectedArtifactRarity,
+    isOwner,
+    mustHoldArtifacts,
   ]);
 
   const flexRow = {
     display: "flex",
     flexDirection: "row",
+    justifyContent: "space-even",
   };
 
   const planetLevelFilter = html`<div style=${{ marginBottom: "3px" }}>
@@ -265,7 +308,7 @@ function App({}) {
       }}
     />`;
 
-  const planetTypeFilter = html`<div style=${{ marginTop: "10px" }}>
+  const planetTypeFilter = html`<div>
     <div style=${{ marginBottom: "3px" }}>Planet Type</div>
     <${CreateSelectFilter}
       items=${PLANET_TYPES}
@@ -274,7 +317,37 @@ function App({}) {
     />
   </div>`;
 
-  const artifactFilter = html`<div style=${{ ...flexRow, marginTop: "10px" }}>
+  const mustHoldArtifactsFilter = html`
+    <div>
+      <div style=${{ marginBottom: "3px" }}>Artifacts</div>
+      <input
+        type="checkbox"
+        title="planets must hold artifacts"
+        onChange=${setMustHoldArtifacts}
+        defaultChecked=${mustHoldArtifacts}
+      />
+    </div>
+  `;
+
+  const ownerFilter = html`
+    <div>
+      <div style=${{ marginBottom: "3px" }}>Owner</div>
+      <input
+        type="checkbox"
+        title="planet is claimed by you"
+        onChange=${() => setIsOwner(!isOwner)}
+        defaultChecked=${isOwner}
+      />
+    </div>
+  `;
+
+  const planetUnionFilters = html`
+    <div style=${{ ...flexRow, justifyContent: "space-between", marginTop: "10px" }}>
+      ${planetTypeFilter} ${mustHoldArtifactsFilter} ${ownerFilter}
+    </div>
+  `;
+
+  const artifactFilters = html`<div style=${{ ...flexRow, marginTop: "10px" }}>
     <div>
       <div style=${{ marginBottom: "3px" }}>Artifacts Type</div>
       <${CreateSelectFilter}
@@ -295,6 +368,7 @@ function App({}) {
       />
     </div>
   </div>`;
+
   const [loading, setLoading] = useState(false);
 
   const highlightPlanet = () => {
@@ -303,31 +377,15 @@ function App({}) {
     setLoading(false);
   };
 
-  const buttonStyle = {
-    margin: "10px 0",
-    background: "rgb(8,8,8)",
-    width: "120px",
-    padding: "3px 5px",
-    border: "1px solid white",
-    borderRadius: "5px",
-  };
+  const submitButton = html`<${createButton}
+    loading=${loading}
+    onClick=${highlightPlanet}
+  />`;
 
-  const buttonLoadingStyle = {
-    ...buttonStyle,
-    color: "#565656",
-    background: "none",
-  };
-
-  const submitButton = html`
-    <div
-      style=${loading ? buttonLoadingStyle : buttonStyle}
-      onClick=${highlightPlanet}
-    >
-      Highlight
-    </div>
-  `;
   return html`
-    ${planetLevelFilter} ${planetTypeFilter} ${artifactFilter} ${submitButton}
+    ${planetLevelFilter} ${planetUnionFilters} ${artifactFilters}
+    <${createDivider} />
+    ${submitButton}
   `;
 }
 
