@@ -406,9 +406,10 @@ class Plugin {
       if (!planet.location) continue;
       let { x, y } = planet.location.coords;
 
+      // enlarge the highlight icon when planet level is small
       if (planet.planetLevel <= 2) {
         ctx.lineWidth =
-          viewport.worldToCanvasDist(ui.getRadiusOfPlanetLevel(4)) -
+          viewport.worldToCanvasDist(ui.getRadiusOfPlanetLevel(3)) -
           viewport.worldToCanvasDist(
             ui.getRadiusOfPlanetLevel(planet.planetLevel)
           );
@@ -416,7 +417,9 @@ class Plugin {
         ctx.arc(
           viewport.worldToCanvasX(x),
           viewport.worldToCanvasY(y),
-          viewport.worldToCanvasDist(ui.getRadiusOfPlanetLevel(4)),
+          viewport.worldToCanvasDist(
+            ui.getRadiusOfPlanetLevel(3)
+          ),
           0,
           2 * Math.PI
         );
@@ -435,7 +438,7 @@ class Plugin {
           2 * Math.PI
         );
         ctx.fill();
-        ctx.stroke();
+        // ctx.stroke();
         ctx.closePath();
       }
     }
