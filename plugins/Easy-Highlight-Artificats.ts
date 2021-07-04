@@ -4,7 +4,6 @@ import {
   useCallback,
   useState,
 } from "https://unpkg.com/htm/preact/standalone.module.js";
-import { PlanetLevel } from "@darkforest_eth/types";
 
 const PLANET_LEVELS = [0, 1, 2, 3, 4, 5, 6, 7].map((level) => ({
   value: level,
