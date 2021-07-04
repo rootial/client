@@ -1,4 +1,4 @@
-let planetMoves: Set<string> = new Set();
+let planetMoves = new Set();
 
 class Plugin {
     constructor() {
