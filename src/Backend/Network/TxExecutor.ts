@@ -54,7 +54,7 @@ export class TxExecutor extends EventEmitter {
   constructor(ethConnection: EthConnection, nonce: number) {
     super();
 
-    this.txQueue = new ThrottledConcurrentQueue(3, 1000, 3);
+    this.txQueue = new ThrottledConcurrentQueue(3, 1000, 5);
     this.nonce = nonce;
     this.lastTransaction = Date.now();
     this.eth = ethConnection;

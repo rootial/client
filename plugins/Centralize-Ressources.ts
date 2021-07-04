@@ -135,7 +135,7 @@ function receiveRessources(fromId, maxDistributeEnergyPercent, minPLevel, maxPle
 
     let i = 0;
     // if it's unclaimed, max energy is from.energyCap + from.energy
-    const maxEnergy = Math.floor(from.owner !== df.getAccount() ? from.energyCap + from.energy : from.energyCap -from.energy);
+    const maxEnergy = Math.floor(from.owner !== df.getAccount() ? from.energyCap + from.energy : (onlySilver ? from.energyCap : from.energyCap - from.energy));
     const maxSilver = Math.floor(from.silverCap -from.silver);
 
     let energyReceived = 0;

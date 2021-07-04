@@ -1,10 +1,10 @@
 import {
   html,
   render,
-  useState,
   useCallback,
-  // @ts-ignore
+  useState,
 } from "https://unpkg.com/htm/preact/standalone.module.js";
+import { PlanetLevel } from "@darkforest_eth/types";
 
 const PLANET_LEVELS = [0, 1, 2, 3, 4, 5, 6, 7].map((level) => ({
   value: level,
@@ -323,7 +323,7 @@ function App({}) {
       <input
         type="checkbox"
         title="planets must hold artifacts"
-        onChange=${setMustHoldArtifacts}
+        onChange=${() => setMustHoldArtifacts(!mustHoldArtifacts)}
         defaultChecked=${mustHoldArtifacts}
       />
     </div>
@@ -342,7 +342,13 @@ function App({}) {
   `;
 
   const planetUnionFilters = html`
-    <div style=${{ ...flexRow, justifyContent: "space-between", marginTop: "10px" }}>
+    <div
+      style=${{
+        ...flexRow,
+        justifyContent: "space-between",
+        marginTop: "10px",
+      }}
+    >
       ${planetTypeFilter} ${mustHoldArtifactsFilter} ${ownerFilter}
     </div>
   `;
@@ -355,7 +361,6 @@ function App({}) {
         selectedValue=${selectedArtifactType}
         onSelect=${(v) => {
           setSelectedArtifactType(v);
-          console.log("level mm", selectedLevels);
         }}
       />
     </div>
@@ -401,19 +406,39 @@ class Plugin {
     for (let planet of eligiblePlanets) {
       if (!planet.location) continue;
       let { x, y } = planet.location.coords;
-      ctx.beginPath();
-      ctx.arc(
-        viewport.worldToCanvasX(x),
-        viewport.worldToCanvasY(y),
-        viewport.worldToCanvasDist(
-          ui.getRadiusOfPlanetLevel(planet.planetLevel)
-        ),
-        0,
-        2 * Math.PI
-      );
-      ctx.fill();
-      ctx.stroke();
-      ctx.closePath();
+
+      if (planet.planetLevel <= 2) {
+        ctx.lineWidth =
+          viewport.worldToCanvasDist(ui.getRadiusOfPlanetLevel(4)) -
+          viewport.worldToCanvasDist(
+            ui.getRadiusOfPlanetLevel(planet.planetLevel)
+          );
+        ctx.beginPath();
+        ctx.arc(
+          viewport.worldToCanvasX(x),
+          viewport.worldToCanvasY(y),
+          viewport.worldToCanvasDist(ui.getRadiusOfPlanetLevel(4)),
+          0,
+          2 * Math.PI
+        );
+        // ctx.fill();
+        ctx.stroke();
+        ctx.closePath();
+      } else {
+        ctx.beginPath();
+        ctx.arc(
+          viewport.worldToCanvasX(x),
+          viewport.worldToCanvasY(y),
+          viewport.worldToCanvasDist(
+            ui.getRadiusOfPlanetLevel(planet.planetLevel)
+          ),
+          0,
+          2 * Math.PI
+        );
+        ctx.fill();
+        ctx.stroke();
+        ctx.closePath();
+      }
     }
     ctx.restore();
   }
