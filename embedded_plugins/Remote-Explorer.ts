@@ -313,7 +313,7 @@ class RemoteExplorerPlugin implements DFPlugin {
     this.miners = [];
     this.id = 0;
 
-    this.addMiner('http://localhost:8848/mine', 'spiral', 256);
+    this.addMiner('http://localhost:8848/mine', 'swiss', 256);
   }
 
   addMiner = (url: string, patternType = 'spiral', chunkSize = 256) => {

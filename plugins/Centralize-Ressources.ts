@@ -166,7 +166,7 @@ function receiveRessources(fromId, maxDistributeEnergyPercent, minPLevel, maxPle
             continue;
         }
 
-        df.move(candidate.locationId, fromId, energyBudget, receivedSilverForMove);
+        df.move(candidate.locationId, fromId, receivedEnergyForMove, receivedSilverForMove);
         energyReceived += receivedEnergyForMove;
         silverReceived += receivedSilverForMove;
         moves += 1;

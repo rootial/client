@@ -1,3 +1,5 @@
+let planetMoves: Set<string> = new Set();
+
 class Plugin {
     constructor() {
         this.minPlanetLevel = 3;
@@ -106,16 +108,17 @@ class Plugin {
         button.style.marginTop = '10px';
         button.innerHTML = 'Crawl from selected!'
         button.onclick = () => {
+            planetMoves.clear();
             let planet = ui.getSelectedPlanet();
             if (planet) {
                 message.innerText = 'Please wait...';
-                let moves = capturePlanets(
+                capturePlanets(
                     planet.locationId,
                     this.minPlanetLevel,
                     this.maxEnergyPercent,
                     this.mustHaveArtifact
                 );
-                message.innerText = `Crawling ${moves} planets.`;
+                message.innerText = `Crawling ${planetMoves.size} planets.`;
             } else {
                 message.innerText = 'No planet selected.';
             }
@@ -126,20 +129,19 @@ class Plugin {
         globalButton.style.marginBottom = '10px';
         globalButton.innerHTML = 'Crawl everything!'
         globalButton.onclick = () => {
+            planetMoves.clear();
             message.innerText = 'Please wait...';
-
-            let moves = 0;
             for (let planet of df.getMyPlanets()) {
                 // filter out the planet level above this.maxLevelToUse
                 if (planet.planetLevel > this.maxLevelToUse) continue;
                 setTimeout(() => {
-                    moves += capturePlanets(
+                    capturePlanets(
                         planet.locationId,
                         this.minPlanetLevel,
                         this.maxEnergyPercent,
                         this.mustHaveArtifact
                     );
-                    message.innerText = `Crawling ${moves} planets.`;
+                    message.innerText = `Crawling ${planetMoves.size} planets.`;
                 }, 0);
             }
         }
@@ -148,7 +150,7 @@ class Plugin {
         container.appendChild(stepper);
         container.appendChild(percent);
         container.appendChild(levelLabel);
-        container.appendChild(level);       
+        container.appendChild(level);
         container.appendChild(maxLevelToUseLabel);
         container.appendChild(maxLevelToUse);
         container.appendChild(mustHaveArtifactLabel);
@@ -168,6 +170,7 @@ function capturePlanets(fromId, minCaptureLevel, maxDistributeEnergyPercent, mus
 
     // Rejected if has pending outbound moves
     const unconfirmed = df.getUnconfirmedMoves().filter(move => move.from === fromId)
+
     if (unconfirmed.length !== 0) {
         return;
     }
@@ -188,13 +191,17 @@ function capturePlanets(fromId, minCaptureLevel, maxDistributeEnergyPercent, mus
     const energyBudget = Math.floor((maxDistributeEnergyPercent / 100) * planet.energy);
 
     let energySpent = 0;
-    let moves = 0;
     while (energyBudget - energySpent > 0 && i < candidates_.length) {
 
         const energyLeft = energyBudget - energySpent;
 
         // Remember its a tuple of candidates and their distance
         const candidate = candidates_[i++][0];
+
+        // Rejected if it is processed before
+        if (planetMoves.has(candidate.locationId)) {
+            continue;
+        }
 
         // Rejected if has unconfirmed pending arrivals
         const unconfirmed = df.getUnconfirmedMoves().filter(move => move.to === candidate.locationId)
@@ -219,10 +226,8 @@ function capturePlanets(fromId, minCaptureLevel, maxDistributeEnergyPercent, mus
             df.move(fromId, candidate.locationId, energyNeeded, 0);
         }, 10);
         energySpent += energyNeeded;
-        moves += 1;
+        planetMoves.add(candidate.locationId);
     }
-
-    return moves;
 }
 
 function getArrivalsForPlanet(planetId) {
