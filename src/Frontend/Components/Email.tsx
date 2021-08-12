@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import Button from './Button';
-import dfstyles from '../Styles/dfstyles';
 import {
   EmailResponse,
   submitInterestedEmail,
   submitUnsubscribeEmail,
 } from '../../Backend/Network/UtilityServerAPI';
+import dfstyles from '../Styles/dfstyles';
+import Button from './Button';
 import { Green, Red, Sub } from './Text';
 
-export enum EmailCTAMode {
+export const enum EmailCTAMode {
   SUBSCRIBE,
   UNSUBSCRIBE,
 }

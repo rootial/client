@@ -1,11 +1,13 @@
-export enum TerminalTextStyle {
+export const enum TerminalTextStyle {
   Green,
   Sub,
+  Subber,
+  Text,
   White,
   Red,
   Blue,
   Invisible,
-  Default,
   Underline,
   Hoverable,
+  Mythic,
 }

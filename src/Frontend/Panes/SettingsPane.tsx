@@ -1,16 +1,17 @@
-import React, { useState, useEffect, FormEvent } from 'react';
-import { ChangeEvent } from 'react';
+import { EthConnection } from '@darkforest_eth/network';
+import { AutoGasSetting } from '@darkforest_eth/types';
+import React, { ChangeEvent, FormEvent, useEffect, useState } from 'react';
 import styled from 'styled-components';
-import EthConnection from '../../Backend/Network/EthConnection';
+import TutorialManager from '../../Backend/GameLogic/TutorialManager';
 import { Chunk } from '../../_types/global/GlobalTypes';
 import { Btn } from '../Components/Btn';
-import { Spacer } from '../Components/CoreUI';
+import { Padded, Section, SectionHeader, Spacer } from '../Components/CoreUI';
 import { Input } from '../Components/Input';
-import { White, Red, Green } from '../Components/Text';
+import { Green, Red } from '../Components/Text';
 import Viewport, { getDefaultScroll } from '../Game/Viewport';
-import dfstyles from '../Styles/dfstyles';
-import { useUIManager, useAccount } from '../Utils/AppHooks';
-import { BooleanSetting, Setting, MultiSelectSetting } from '../Utils/SettingsHooks';
+import { useAccount, useUIManager } from '../Utils/AppHooks';
+import { useEmitterValue } from '../Utils/EmitterHooks';
+import { BooleanSetting, MultiSelectSetting, Setting } from '../Utils/SettingsHooks';
 import { ModalHook, ModalName, ModalPane } from '../Views/ModalPane';
 
 const SCROLL_MIN = 0.0001 * 10000;
@@ -19,13 +20,13 @@ const DEFAULT_SCROLL = Math.round(10000 * (getDefaultScroll() - 1));
 
 const Range = styled.input``;
 
-const StyledSettingsPane = styled.div`
-  width: 32em;
-  height: 30em;
+const SettingsContent = styled(Padded)`
+  width: 500px;
+  height: 500px;
   overflow-y: scroll;
   display: flex;
   flex-direction: column;
-  color: ${dfstyles.colors.subtext};
+  text-align: justify;
 `;
 
 const Row = styled.div`
@@ -34,53 +35,40 @@ const Row = styled.div`
 
   justify-content: space-between;
   align-items: center;
-  margin-top: 8px;
 
   & > span:first-child {
     flex-grow: 1;
   }
 `;
 
-const Section = styled.div`
-  padding: 1em 0;
-  border-bottom: 1px solid ${dfstyles.colors.subtext};
-
-  &:last-child {
-    border-bottom: none;
-  }
-`;
-
-const SectionHeader = styled.div`
-  text-decoration: underline;
-  color: white;
-  margin-bottom: 8px;
-`;
-
 const ScrollSpeedInput = styled(Input)`
   padding: 2px 2px;
-  width: 4em;
+  width: 8em;
   height: min-content;
 `;
 
 export function SettingsPane({
-  ethConnection,
-  hook,
-  privateHook,
-}: {
+                               ethConnection,
+                               hook,
+                               privateHook,
+                             }: {
   ethConnection: EthConnection;
   hook: ModalHook;
   privateHook: ModalHook;
 }) {
   const uiManager = useUIManager();
   const account = useAccount(uiManager);
+  const gasPrices = useEmitterValue(ethConnection.gasPrices$, ethConnection.getAutoGasPrices());
 
-  const [rpcURLText, setRpcURLText] = useState<string>(ethConnection.getRpcEndpoint());
-  const [rpcURL, setRpcURL] = useState<string>(ethConnection.getRpcEndpoint());
+  const [rpcUrl, setRpcURL] = useState<string>(ethConnection.getRpcEndpoint());
   const onChangeRpc = () => {
-    ethConnection.setRpcEndpoint(rpcURLText).then(() => {
-      const newEndpoint = ethConnection.getRpcEndpoint();
-      setRpcURLText(newEndpoint);
-      setRpcURL(newEndpoint);
+    ethConnection
+    .setRpcUrl(rpcUrl)
+    .then(() => {
+      localStorage.setItem('XDAI_RPC_ENDPOINT_v5', rpcUrl);
+    })
+    .catch(() => {
+      setRpcURL(ethConnection.getRpcEndpoint());
     });
   };
 
@@ -194,162 +182,208 @@ export function SettingsPane({
   }, [scrollSpeed]);
 
   return (
-    <ModalPane hook={hook} title={'Settings'} name={ModalName.Hats}>
-      <StyledSettingsPane>
-        <Section>
-          <SectionHeader>Manage account</SectionHeader>
-          Your <White>SKEY</White>, or secret key, together with your <White>home planet's</White>{' '}
-          coordinates, grant you access to your Dark Forest account on different browsers (kind of
-          like a password).
-          <Spacer height={8} />
-          <em>
-            <Red>WARNING:</Red> Never ever send this to anyone!
-          </em>
-          <Spacer height={8} />
-          <Row>
-            <Btn onClick={doPrivateClick}>Click {clicks} times to view info</Btn>
-          </Row>
-        </Section>
+      <ModalPane hook={hook} title={'Settings'} name={ModalName.Hats}>
+        <SettingsContent>
+          <Section>
+            <SectionHeader>Burner Wallet Info</SectionHeader>
+            <Row>
+              <span>Public Key</span>
+              <span>{account}</span>
+            </Row>
+            <Row>
+              <span>Balance</span>
+              <span>{balance}</span>
+            </Row>
+          </Section>
 
-        <Section>
-          <SectionHeader>Manage wallet</SectionHeader>
-          <Row>
-            <span>Public Key</span>
-            <span>{account}</span>
-          </Row>
-          <Row>
-            <span>Balance</span>
-            <span>{balance}</span>
-          </Row>
-          <Row>
-            <span>gas fee (gwei)</span>
+          <Section>
+            <SectionHeader>Gas Price</SectionHeader>
+            Your gas price setting determines the price you pay for each transaction. A higher gas
+            price means your transactions will be prioritized by the blockchain, making them confirm
+            faster. We recommend using the auto average setting. All auto settings prices are pulled
+            from an oracle and are capped at 15 gwei.
+            <Spacer height={16} />
             <MultiSelectSetting
-              uiManager={uiManager}
-              setting={Setting.GasFeeGwei}
-              values={['1', '2', '5', '10', '15', '20', '25', '30', '40']}
-              labels={[
-                '1 gwei (default)',
-                '2 gwei (faster)',
-                '5 gwei (turbo)',
-                '10 gwei (mega turbo)',
-                '15 gwei',
-                '20 gwei (need4speed)',
-                '25 gwei',
-                '30 gwei',
-                '40 gwei'
-              ]}
+                wide
+                uiManager={uiManager}
+                setting={Setting.GasFeeGwei}
+                values={[
+                  '1',
+                  '2',
+                  '5',
+                  '10',
+                  '20',
+                  '40',
+                  AutoGasSetting.Slow,
+                  AutoGasSetting.Average,
+                  AutoGasSetting.Fast,
+                ]}
+                labels={[
+                  '1 gwei (default)',
+                  '2 gwei (faster)',
+                  '5 gwei (turbo)',
+                  '10 gwei (mega turbo)',
+                  '20 gwei (need4speed)',
+                  '40 gwei (gigafast)',
+                  `slow auto (~${gasPrices.slow} gwei)`,
+                  `average auto (~${gasPrices.average} gwei)`,
+                  `fast auto (~${gasPrices.fast} gwei)`,
+                ]}
             />
-          </Row>
-          <Row>
-            <span>
-              Auto-confirm all transactions except purchases. Currently, you can only purchase GPT
-              Credits, and Hats.
-            </span>
-            <Spacer width={64} />
-            <BooleanSetting
-              uiManager={uiManager}
-              setting={Setting.AutoApproveNonPurchaseTransactions}
-            />
-          </Row>
-        </Section>
+          </Section>
 
-        <Section>
-          <SectionHeader>Export and import explored maps</SectionHeader>
-          <em>
+          <Section>
+            <SectionHeader>Burner Wallet Info (Private)</SectionHeader>
+            Your secret key, together with your home planet's coordinates, grant you access to your
+            Dark Forest account on different browsers. You should save this info somewhere on your
+            computer.
+            <Spacer height={16} />
+            <Red>WARNING:</Red> Never ever send this to anyone!
+            <Spacer height={8} />
+            <Btn wide onClick={doPrivateClick}>
+              Click {clicks} times to view info
+            </Btn>
+          </Section>
+
+          <Section>
+            <SectionHeader>Auto Confirm Transactions</SectionHeader>
+            Whether or not to auto-confirm all transactions, except purchases. This will allow you to
+            make moves, spend silver on upgrades, etc. without requiring you to confirm each
+            transaction. However, the client WILL ask for confirmation before sending transactions
+            that spend wallet funds.
+            <Spacer height={16} />
+            <BooleanSetting
+                uiManager={uiManager}
+                setting={Setting.AutoApproveNonPurchaseTransactions}
+                settingDescription={'auto confirm non-purchase transactions'}
+            />
+          </Section>
+
+          <Section>
+            <SectionHeader>Import and Export Map Data</SectionHeader>
             <Red>WARNING:</Red> Maps from others could be altered and are not guaranteed to be
             correct!
-          </em>
-          <Spacer height={8} />
-          <Btn wide onClick={onExportMap}>
-            Copy Map to Clipboard
-          </Btn>
-          <Spacer height={8} />
-          <Btn wide onClick={onImportMap}>
-            Import Map from Clipboard
-          </Btn>
-          <Spacer height={16} />
-          You can also import a map by pasting from your clipboard into the text input below, and
-          clicking the import button below it.
-          <Spacer height={8} />
-          <Input
-            wide
-            value={importMapByTextBoxValue}
-            placeholder={'Paste map contents here'}
-            onInput={(e: ChangeEvent<HTMLInputElement>) =>
-              setImportMapByTextBoxValue(e.target.value)
-            }
-          />
-          <Spacer height={8} />
-          <Btn
-            wide
-            onClick={onImportMapFromTextBox}
-            disabled={importMapByTextBoxValue.length === 0}
-          >
-            Import
-          </Btn>
-          <Spacer height={8} />
-          <Green>{success}</Green>
-          <Red>{failure}</Red>
-        </Section>
-
-        <Section>
-          <SectionHeader>Change RPC Endpoint</SectionHeader>
-          Current RPC Endpoint: {rpcURL}
-          <Spacer height={8} />
-          <Row>
-            <Input value={rpcURLText} onChange={(e) => setRpcURLText(e.target.value)} />
-            <Btn onClick={onChangeRpc}>Change RPC URL</Btn>
-          </Row>
-        </Section>
-
-        <Section>
-          <SectionHeader>Metrics Opt Out</SectionHeader>
-          We collect a minimal set of data and statistics such as SNARK proving times, average
-          transaction times across browsers, and xDAI transaction errors, to help us optimize
-          performance and fix bugs. This does not include personal data like email or IP address.
-          <Spacer height={8} />
-          <BooleanSetting
-            uiManager={uiManager}
-            setting={Setting.OptOutMetrics}
-            settingDescription='toggle metrics opt out'
-          />
-        </Section>
-
-        <Section>
-          <SectionHeader>Performance</SectionHeader>
-          Some performance settings. These will definitely be changed as we zero in on the
-          performance bottlenecks in this game.
-          <Spacer height={8} />
-          <BooleanSetting
-            uiManager={uiManager}
-            setting={Setting.HighPerformanceRendering}
-            settingDescription='toggle performance mode'
-          />
-        </Section>
-
-        <Section>
-          <SectionHeader>Manage other settings.</SectionHeader>
-          <div>Show notifications for MOVE</div>
-          <Spacer height={8} />
-          <BooleanSetting
-            uiManager={uiManager}
-            setting={Setting.MoveNotifications}
-            settingDescription='toggle move notifications'
-          />
-          <Row>
-            Scroll speed
-            <Range
-              type='range'
-              value={clipScroll(scrollSpeed)}
-              min={SCROLL_MIN}
-              max={SCROLL_MAX}
-              step={SCROLL_MIN / 10}
-              onInput={onScrollChange}
+            <Spacer height={16} />
+            <Input
+                wide
+                value={importMapByTextBoxValue}
+                placeholder={'Paste map contents here'}
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setImportMapByTextBoxValue(e.target.value)
+                }
             />
-            <ScrollSpeedInput value={scrollSpeed} onInput={onScrollChange} />
-          </Row>
-        </Section>
-      </StyledSettingsPane>
-    </ModalPane>
+            <Spacer height={8} />
+            <Btn
+                wide
+                onClick={onImportMapFromTextBox}
+                disabled={importMapByTextBoxValue.length === 0}
+            >
+              Import Map From Above
+            </Btn>
+            <Spacer height={8} />
+            <Btn wide onClick={onExportMap}>
+              Copy Map to Clipboard
+            </Btn>
+            <Spacer height={8} />
+            <Btn wide onClick={onImportMap}>
+              Import Map from Clipboard
+            </Btn>
+            <Spacer height={8} />
+            <Green>{success}</Green>
+            <Red>{failure}</Red>
+          </Section>
+
+          <Section>
+            <SectionHeader>Change RPC Endpoint</SectionHeader>
+            <Spacer height={8} />
+            Current RPC Endpoint: {rpcUrl}
+            <Spacer height={8} />
+            <Input wide value={rpcUrl} onChange={(e) => setRpcURL(e.target.value)} />
+            <Spacer height={8} />
+            <Btn wide onClick={onChangeRpc}>
+              Change RPC URL
+            </Btn>
+          </Section>
+
+          <Section>
+            <SectionHeader>Metrics Opt Out</SectionHeader>
+            We collect a minimal set of data and statistics such as SNARK proving times, average
+            transaction times across browsers, and xDAI transaction errors, to help us optimize
+            performance and fix bugs. This does not include personal data like email or IP address.
+            <Spacer height={8} />
+            <BooleanSetting
+                uiManager={uiManager}
+                setting={Setting.OptOutMetrics}
+                settingDescription='metrics opt out'
+            />
+          </Section>
+
+          <Section>
+            <SectionHeader>Performance</SectionHeader>
+            Some performance settings. These will definitely be changed as we zero in on the
+            performance bottlenecks in this game.
+            <Spacer height={16} />
+            <BooleanSetting
+                uiManager={uiManager}
+                setting={Setting.HighPerformanceRendering}
+                settingDescription='performance mode'
+            />
+          </Section>
+
+          <Section>
+            <SectionHeader>Show notifications for MOVE</SectionHeader>
+            <Spacer height={8} />
+            <BooleanSetting
+                uiManager={uiManager}
+                setting={Setting.MoveNotifications}
+                settingDescription='move notifications'
+            />
+          </Section>
+
+          <Section>
+            <SectionHeader>Scroll speed</SectionHeader>
+            <Spacer height={8} />
+            <ScrollContainer>
+              <Range
+                  type='range'
+                  value={clipScroll(scrollSpeed)}
+                  min={SCROLL_MIN}
+                  max={SCROLL_MAX}
+                  step={SCROLL_MIN / 10}
+                  onChange={onScrollChange}
+              />
+              <Spacer width={16} />
+              <ScrollSpeedInput value={scrollSpeed} onChange={onScrollChange} />
+            </ScrollContainer>
+          </Section>
+
+          <Section>
+            <SectionHeader>Reset Tutorial</SectionHeader>
+            <Spacer height={8} />
+            <Btn wide onClick={() => TutorialManager.getInstance().reset(uiManager.getAccount())}>
+              Reset Tutorial
+            </Btn>
+          </Section>
+
+          <Section>
+            <SectionHeader>Disable Default Shortcuts</SectionHeader>
+            If you'd like to use custom shortcuts via a plugin, you can disable the default shortcuts
+            here.
+            <Spacer height={8} />
+            <BooleanSetting
+                uiManager={uiManager}
+                setting={Setting.DisableDefaultShortcuts}
+                settingDescription='toggle disable default shortcuts'
+            />
+          </Section>
+        </SettingsContent>
+      </ModalPane>
   );
 }
+
+const ScrollContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+`;

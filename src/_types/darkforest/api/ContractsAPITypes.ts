@@ -1,14 +1,14 @@
 import { ArtifactPointValues, UpgradeBranches } from '@darkforest_eth/types';
 import { BigNumber as EthersBN } from 'ethers';
 
-export enum ZKArgIdx {
+export const enum ZKArgIdx {
   PROOF_A,
   PROOF_B,
   PROOF_C,
   DATA,
 }
 
-export enum InitArgIdxs {
+export const enum InitArgIdxs {
   LOCATION_ID,
   PERLIN,
   RADIUS,
@@ -19,7 +19,7 @@ export enum InitArgIdxs {
   PERLIN_MIRROR_Y,
 }
 
-export enum MoveArgIdxs {
+export const enum MoveArgIdxs {
   FROM_ID,
   TO_ID,
   TO_PERLIN,
@@ -35,12 +35,12 @@ export enum MoveArgIdxs {
   ARTIFACT_SENT,
 }
 
-export enum UpgradeArgIdxs {
+export const enum UpgradeArgIdxs {
   LOCATION_ID,
   UPGRADE_BRANCH,
 }
 
-export enum ContractEvent {
+export const enum ContractEvent {
   PlayerInitialized = 'PlayerInitialized',
   ArrivalQueued = 'ArrivalQueued',
   PlanetUpgraded = 'PlanetUpgraded',
@@ -56,9 +56,11 @@ export enum ContractEvent {
 
   // DarkForestGPTCredit
   ChangedGPTCreditPrice = 'ChangedCreditPrice',
+  // DarkForestScoringRound3
+  LocationClaimed = 'LocationClaimed',
 }
 
-export enum ContractsAPIEvent {
+export const enum ContractsAPIEvent {
   PlayerUpdate = 'PlayerUpdate',
   PlanetUpdate = 'PlanetUpdate',
   ArrivalQueued = 'ArrivalQueued',
@@ -71,6 +73,7 @@ export enum ContractsAPIEvent {
   TxConfirmed = 'TxConfirmed',
   TxReverted = 'TxReverted',
   PlanetTransferred = 'PlanetTransferred',
+  PlanetClaimed = 'PlanetClaimed',
 }
 
 // planet locationID(BigInt), branch number
@@ -99,6 +102,14 @@ export type MoveArgs = [
     string, // silver sent
     string // artifactId sent
   ]
+];
+
+// Same as reveal args with Explicit coords attached
+export type ClaimArgs = [
+  [string, string],
+  [[string, string], [string, string]],
+  [string, string],
+  [string, string, string, string, string, string, string, string, string]
 ];
 
 export type DepositArtifactArgs = [string, string]; // locationId, artifactId
@@ -149,6 +160,7 @@ export interface ContractConstants {
   PERLIN_THRESHOLD_3: number;
   INIT_PERLIN_MIN: number;
   INIT_PERLIN_MAX: number;
+  SPAWN_RIM_AREA: number;
   BIOME_THRESHOLD_1: number;
   BIOME_THRESHOLD_2: number;
   PLANET_RARITY: number;
@@ -157,6 +169,7 @@ export interface ContractConstants {
 
   PHOTOID_ACTIVATION_DELAY: number;
   LOCATION_REVEAL_COOLDOWN: number;
+  CLAIM_PLANET_COOLDOWN: number;
 
   defaultPopulationCap: number[];
   defaultPopulationGrowth: number[];
@@ -187,6 +200,6 @@ export type ClientMockchainData =
       [key in string | number]: ClientMockchainData;
     };
 
-export enum PlanetEventType {
+export const enum PlanetEventType {
   ARRIVAL,
 }

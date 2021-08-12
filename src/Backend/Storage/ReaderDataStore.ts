@@ -1,24 +1,24 @@
+import { EthConnection } from '@darkforest_eth/network';
 import {
-  EthAddress,
-  SpaceType,
-  Biome,
-  Planet,
-  LocatablePlanet,
-  WorldLocation,
-  LocationId,
   ArtifactId,
+  Biome,
+  EthAddress,
+  LocatablePlanet,
+  LocationId,
+  Planet,
+  SpaceType,
+  WorldLocation,
 } from '@darkforest_eth/types';
 import { TerminalHandle } from '../../Frontend/Views/Terminal';
 import { ContractConstants } from '../../_types/darkforest/api/ContractsAPITypes';
 import { AddressTwitterMap } from '../../_types/darkforest/api/UtilityServerAPITypes';
 import { isLocatable } from '../../_types/global/GlobalTypes';
 import { arrive, updatePlanetToTime } from '../GameLogic/ArrivalUtils';
-import ContractsAPI from '../GameLogic/ContractsAPI';
-import EthConnection from '../Network/EthConnection';
+import { ContractsAPI, makeContractsAPI } from '../GameLogic/ContractsAPI';
 import { getAllTwitters } from '../Network/UtilityServerAPI';
 import PersistentChunkStore from './PersistentChunkStore';
 
-export enum SinglePlanetDataStoreEvent {
+export const enum SinglePlanetDataStoreEvent {
   REFRESHED_PLANET = 'REFRESHED_PLANET',
   REFRESHED_ARTIFACT = 'REFRESHED_ARTIFACT',
 }
@@ -59,7 +59,7 @@ class ReaderDataStore {
     ethConnection: EthConnection,
     viewer: EthAddress | undefined
   ): Promise<ReaderDataStore> {
-    const contractsAPI = await ContractsAPI.create(ethConnection);
+    const contractsAPI = await makeContractsAPI(ethConnection);
     const addressTwitterMap = await getAllTwitters();
     const contractConstants = await contractsAPI.getConstants();
     const persistentChunkStore = viewer && (await PersistentChunkStore.create(viewer));
@@ -173,7 +173,7 @@ class ReaderDataStore {
     else if (biomebase < this.contractConstants.BIOME_THRESHOLD_2) biome += 2;
     else biome += 3;
 
-    return biome;
+    return biome as Biome;
   }
 }
 

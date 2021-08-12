@@ -1,18 +1,19 @@
 import { CONTRACT_PRECISION } from '@darkforest_eth/constants';
-import { hasOwner } from '../Utils/Utils';
 import {
   Artifact,
   ArtifactType,
-  QueuedArrival,
-  Planet,
-  Upgrade,
-  PlanetType,
   EmojiFlagBody,
+  Planet,
   PlanetMessage,
+  PlanetType,
+  QueuedArrival,
+  Upgrade,
 } from '@darkforest_eth/types';
-import { isActivated } from './ArtifactUtils';
+import _ from 'lodash';
 import { ContractConstants } from '../../_types/darkforest/api/ContractsAPITypes';
 import { isEmojiFlagMessage } from '../../_types/global/GlobalTypes';
+import { hasOwner } from '../Utils/Utils';
+import { isActivated } from './ArtifactUtils';
 
 // TODO: planet class, cmon, let's go
 export const blocksLeftToProspectExpiration = (
@@ -131,12 +132,23 @@ export const applyUpgrade = (planet: Planet, upgrade: Upgrade, unApply = false) 
   }
 };
 
+/**
+ * @param previous The previously calculated state of a planet
+ * @param current The current calculated state of the planet
+ * @param arrival The Arrival that caused the state change
+ */
+export interface PlanetDiff {
+  previous: Planet;
+  current: Planet;
+  arrival: QueuedArrival;
+}
+
 export const arrive = (
   toPlanet: Planet,
   artifactsOnPlanet: Artifact[],
   arrival: QueuedArrival,
   contractConstants: ContractConstants
-): void => {
+): PlanetDiff => {
   // this function optimistically simulates an arrival
   if (toPlanet.locationId !== arrival.toPlanet) {
     throw new Error(`attempted to apply arrival for wrong toPlanet ${toPlanet.locationId}`);
@@ -145,8 +157,9 @@ export const arrive = (
   // update toPlanet energy and silver right before arrival
   updatePlanetToTime(toPlanet, artifactsOnPlanet, arrival.arrivalTime * 1000, contractConstants);
 
+  const prevPlanet = _.cloneDeep(toPlanet);
   if (toPlanet.destroyed) {
-    return;
+    return { arrival: arrival, previous: toPlanet, current: toPlanet };
   }
 
   // apply energy
@@ -193,6 +206,7 @@ export const arrive = (
   if (arrival.artifactId) {
     toPlanet.heldArtifactIds.push(arrival.artifactId);
   }
+  return { arrival, current: toPlanet, previous: prevPlanet };
 };
 
 /**
@@ -203,4 +217,12 @@ export function getEmojiMessage(
   planet: Planet | undefined
 ): PlanetMessage<EmojiFlagBody> | undefined {
   return planet?.messages?.find(isEmojiFlagMessage);
+}
+
+/**
+ * @todo - planet class
+ */
+export function getRange(planet: Planet, percentEnergySending = 100): number {
+  if (percentEnergySending === 0) return 0;
+  return Math.max(Math.log2(percentEnergySending / 5), 0) * planet.range;
 }
