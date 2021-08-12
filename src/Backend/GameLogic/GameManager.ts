@@ -696,7 +696,7 @@ class GameManager extends EventEmitter {
       });
 
     const unconfirmedTxs = await persistentChunkStore.getUnconfirmedSubmittedEthTxs();
-    const confirmationQueue = new ThrottledConcurrentQueue(10, 1000, 1);
+    const confirmationQueue = new ThrottledConcurrentQueue(10, 1000, 5);
 
     for (const unconfirmedTx of unconfirmedTxs) {
       // recommits the tx to storage but whatever

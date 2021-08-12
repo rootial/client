@@ -32,13 +32,7 @@ class VoyageTime {
                     this.estimatedTime.innerText = `${seconds} secs`;
                 }
                 this.estimatedTimeSeconds.innerText = `${time} secs`;
-            } else {
-                this.estimatedTime.innerText = '?????';
-                this.estimatedTimeSeconds.innerText = ``;
             }
-        } else {
-            this.estimatedTime.innerText = '?????';
-            this.estimatedTimeSeconds.innerText = ``;
         }
     }
 
