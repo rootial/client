@@ -1,5 +1,5 @@
-import { ProcgenUtils } from '../../Backend/Procedural/ProcgenUtils';
 import { LocationId } from '@darkforest_eth/types';
+import { ProcgenUtils } from '../../Backend/Procedural/ProcgenUtils';
 
 export type Hat = {
   topLayer: Array<string>;
@@ -95,7 +95,7 @@ const squid = {
   ],
 };
 
-export enum HatType {
+export const enum HatType {
   GraduationCap = 'GraduationCap',
   PartyHat = 'PartyHat',
   Fish = 'Fish',

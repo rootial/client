@@ -1,11 +1,12 @@
+import { Artifact, ArtifactTypeNames, Conversation, Message } from '@darkforest_eth/types';
 import React from 'react';
 import styled from 'styled-components';
-import { Artifact, Conversation, Message, ArtifactNames } from '@darkforest_eth/types';
 import { WikiPane } from '../../Frontend/Panes/WikiPane';
+import dfstyles from '../../Frontend/Styles/dfstyles';
 import { TerminalTextStyle } from '../../Frontend/Utils/TerminalTypes';
 import { TerminalHandle } from '../../Frontend/Views/Terminal';
-import GameUIManager from './GameUIManager';
 import { artifactName } from '../Procedural/ArtifactProcgen';
+import GameUIManager from './GameUIManager';
 
 const BadwordsFilter = require('bad-words');
 const filter = new BadwordsFilter();
@@ -58,7 +59,7 @@ export class PaidConversationManager {
         await this.terminal.current?.getInput();
         this.terminal.current?.println(
           `Initializing conversation with ${artifactName(this.artifact)} (${
-            ArtifactNames[this.artifact.artifactType]
+            ArtifactTypeNames[this.artifact.artifactType]
           })`
         );
 
@@ -207,5 +208,5 @@ const WikiEntryTitle = styled.div`
   font-size: 150%;
   margin-bottom: 8px;
   text-decoration: underline;
-  color: white;
+  color: ${dfstyles.colors.text};
 `;

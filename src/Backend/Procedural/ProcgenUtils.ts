@@ -1,32 +1,30 @@
-import { isLocatable } from '../../_types/global/GlobalTypes';
+import { EMPTY_ADDRESS, MAX_PLANET_LEVEL, MIN_PLANET_LEVEL } from '@darkforest_eth/constants';
+import { seededRandom } from '@darkforest_eth/hashing';
+import {
+  ArtifactId,
+  Biome,
+  EthAddress,
+  LocationId,
+  Planet,
+  UpgradeBranchName,
+} from '@darkforest_eth/types';
 import * as bigInt from 'big-integer';
-import { PlanetCosmeticInfo, RuinsInfo } from '../Utils/UtilsTypes';
+import { HSLVec, RGBAVec, RGBVec } from '../../Frontend/Renderers/GameRenderer/EngineTypes';
+import { HAT_SIZES } from '../../Frontend/Utils/constants';
+import { HatType, hatTypeFromHash } from '../../Frontend/Utils/Hats';
+import { isLocatable } from '../../_types/global/GlobalTypes';
 import { getPlanetRank, titleCase } from '../Utils/Utils';
-import _ from 'lodash';
+import { PlanetCosmeticInfo, RuinsInfo } from '../Utils/UtilsTypes';
 import Noise from './Noise';
 import {
+  blurb2grammar,
+  blurbGrammar,
   planetNameWords,
   planetTagAdj,
   planetTagNoun,
-  blurb2grammar,
-  blurbGrammar,
 } from './ProcgenConsts';
-import {
-  Planet,
-  EthAddress,
-  LocationId,
-  Biome,
-  PlanetLevel,
-  UpgradeBranchName,
-  ArtifactId,
-} from '@darkforest_eth/types';
-import { seededRandom } from '@darkforest_eth/hashing';
-import { HSLVec, RGBAVec, RGBVec } from '../../Frontend/Renderers/GameRenderer/EngineTypes';
-import { HatType, hatTypeFromHash } from '../../Frontend/Utils/Hats';
 import tracery from './tracery';
 import { baseEngModifiers } from './tracery-modifiers';
-import { EMPTY_ADDRESS } from '@darkforest_eth/constants';
-import { HAT_SIZES } from '../../Frontend/Utils/constants';
 
 export type PixelCoords = {
   x: number;
@@ -42,32 +40,32 @@ export class ProcgenUtils {
   private static blurbsById = new Map<LocationId, string>();
   private static blurbs2ById = new Map<LocationId, string>();
   private static cosmeticByLocId = new Map<LocationId, PlanetCosmeticInfo>();
-  private static baseByBiome: Record<Biome, HSLVec> = [
-    [0, 0, 0], // UNKNOWN
-    [213, 100, 50], // OCEAN
-    [135, 96, 63], // FOREST
-    [82, 80, 76], // GRASSLAND
-    [339, 95, 70], // TUNDRA
-    [44, 81, 33], // SWAMP
-    [51, 78, 60], // DESERT
-    [198, 78, 77], // ICE
-    [0, 0, 18], // WASTELAND
-    [19, 100, 50], // LAVA
-    [280, 100, 54], // CORRUPTED
-  ];
-  private static oceanByBiome: Record<Biome, HSLVec> = [
-    [0, 0, 0], // UNKNOWN
-    [213, 89, 35], // OCEAN
-    [193, 96, 43], // FOREST
-    [185, 78, 70], // GRASSLAND
-    [201, 95, 70], // TUNDRA
-    [285, 81, 33], // SWAMP
-    [27, 78, 60], // DESERT
-    [198, 90, 85], // ICE
-    [0, 98, 42], // WASTELAND
-    [12, 92, 39], // LAVA
-    [308, 90, 63], // CORRUPTED
-  ];
+  private static baseByBiome: { readonly [Biome: number]: HSLVec } = {
+    [Biome.UNKNOWN]: [0, 0, 0],
+    [Biome.OCEAN]: [213, 100, 50],
+    [Biome.FOREST]: [135, 96, 63],
+    [Biome.GRASSLAND]: [82, 80, 76],
+    [Biome.TUNDRA]: [339, 95, 70],
+    [Biome.SWAMP]: [44, 81, 33],
+    [Biome.DESERT]: [51, 78, 60],
+    [Biome.ICE]: [198, 78, 77],
+    [Biome.WASTELAND]: [0, 0, 18],
+    [Biome.LAVA]: [19, 100, 50],
+    [Biome.CORRUPTED]: [100, 80, 54],
+  } as const;
+  private static oceanByBiome: { readonly [Biome: number]: HSLVec } = {
+    [Biome.UNKNOWN]: [0, 0, 0],
+    [Biome.OCEAN]: [213, 89, 35],
+    [Biome.FOREST]: [193, 96, 43],
+    [Biome.GRASSLAND]: [185, 78, 70],
+    [Biome.TUNDRA]: [201, 95, 70],
+    [Biome.SWAMP]: [285, 81, 33],
+    [Biome.DESERT]: [27, 78, 60],
+    [Biome.ICE]: [198, 90, 85],
+    [Biome.WASTELAND]: [0, 98, 42],
+    [Biome.LAVA]: [12, 92, 39],
+    [Biome.CORRUPTED]: [128, 90, 63],
+  } as const;
 
   private static strByBiome = new Map<Biome, string>();
   public static getBiomeRgbStr(biome: Biome): string {
@@ -219,7 +217,7 @@ export class ProcgenUtils {
       }
     }
 
-    return maxIdx;
+    return maxIdx as UpgradeBranchName;
   }
 
   // returns a deterministic seeded perlin (-1, 1) for a given planet loc
@@ -282,7 +280,7 @@ export class ProcgenUtils {
     const rand = this.planetRandom(loc);
     const randInt = this.planetRandomInt(loc);
 
-    for (let i = PlanetLevel.MIN; i <= PlanetLevel.MAX; i++) {
+    for (let i = MIN_PLANET_LEVEL; i <= MAX_PLANET_LEVEL; i++) {
       const blooms = (randInt() % 4) + 1;
       const reflect = randInt() % 2;
       const vel = -1 + rand() * 2;

@@ -1,16 +1,24 @@
-import JSZip from 'jszip';
+import {
+  EMPTY_ARTIFACT_ID,
+  MAX_ARTIFACT_RARITY,
+  MAX_ARTIFACT_TYPE,
+  MAX_BIOME,
+  MIN_ARTIFACT_RARITY,
+  MIN_ARTIFACT_TYPE,
+  MIN_BIOME,
+} from '@darkforest_eth/constants';
 import { Artifact, ArtifactRarity, ArtifactType, Biome } from '@darkforest_eth/types';
 import { mat4 } from 'gl-matrix';
-import { SpriteRenderer } from './GameRenderer/Entities/SpriteRenderer';
-import { WebGLManager } from './GameRenderer/WebGL/WebGLManager';
-import { mockArtifactWithRarity } from '../../Backend/Procedural/ArtifactProcgen';
+import JSZip from 'jszip';
 import {
   ArtifactFileColor,
   artifactFileName,
   setForceAncient,
 } from '../../Backend/GameLogic/ArtifactUtils';
-import { EMPTY_LOCATION_ID } from '@darkforest_eth/constants';
+import { mockArtifactWithRarity } from '../../Backend/Procedural/ArtifactProcgen';
 import { GIF_ARTIFACT_COLOR } from '../Pages/GifMaker';
+import { SpriteRenderer } from './GameRenderer/Entities/SpriteRenderer';
+import { WebGLManager } from './GameRenderer/WebGL/WebGLManager';
 
 const FileSaver = require('file-saver');
 
@@ -87,7 +95,7 @@ export class GifRenderer extends WebGLManager {
     return artifactFileName(
       video,
       this.thumb,
-      { artifactType: type, planetBiome: biome, rarity, id: EMPTY_LOCATION_ID },
+      { artifactType: type, planetBiome: biome, rarity, id: EMPTY_ARTIFACT_ID },
       GIF_ARTIFACT_COLOR,
       { skipCaching: true, forceAncient: ancient }
     );
@@ -139,9 +147,9 @@ export class GifRenderer extends WebGLManager {
 
   private async addBiomes(videoMode: boolean, dir: JSZip) {
     setForceAncient(false);
-    for (let type = ArtifactType.MIN; type <= ArtifactType.MAX; type++) {
-      for (let rarity = ArtifactRarity.MIN; rarity <= ArtifactRarity.MAX; rarity++) {
-        for (let biome = Biome.MIN; biome <= Biome.MAX; biome++) {
+    for (let type = MIN_ARTIFACT_TYPE; type <= MAX_ARTIFACT_TYPE; type++) {
+      for (let rarity = MIN_ARTIFACT_RARITY; rarity <= MAX_ARTIFACT_RARITY; rarity++) {
+        for (let biome = MIN_BIOME; biome <= MAX_BIOME; biome++) {
           if (videoMode) await this.addVideo(dir, type, biome, rarity, false);
           else this.addSprite(dir, type, biome, rarity, false);
         }
@@ -151,10 +159,10 @@ export class GifRenderer extends WebGLManager {
 
   private async addAncient(videoMode: boolean, dir: JSZip) {
     setForceAncient(true);
-    for (let type = ArtifactType.MIN; type <= ArtifactType.MAX; type++) {
-      for (let rarity = ArtifactRarity.MIN; rarity <= ArtifactRarity.MAX; rarity++) {
-        if (videoMode) await this.addVideo(dir, type, 1, rarity, true);
-        else this.addSprite(dir, type, 1, rarity, true);
+    for (let type = MIN_ARTIFACT_TYPE; type <= MAX_ARTIFACT_TYPE; type++) {
+      for (let rarity = MIN_ARTIFACT_RARITY; rarity <= MAX_ARTIFACT_RARITY; rarity++) {
+        if (videoMode) await this.addVideo(dir, type, Biome.OCEAN, rarity, true);
+        else this.addSprite(dir, type, Biome.OCEAN, rarity, true);
       }
     }
   }

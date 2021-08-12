@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events';
 import { WorldCoords } from '@darkforest_eth/types';
+import { EventEmitter } from 'events';
 import { GameWindowZIndex } from '../Utils/constants';
 
 // these should be relative to window
@@ -8,7 +8,7 @@ export type MousePos = {
   y: number;
 };
 
-export enum WindowManagerEvent {
+export const enum WindowManagerEvent {
   StateChanged = 'StateChanged',
   MiningCoordsUpdate = 'MiningCoordsUpdate',
   TooltipUpdated = 'TooltipUpdated',
@@ -16,13 +16,13 @@ export enum WindowManagerEvent {
   CtrlUp = 'CtrlUp',
 }
 
-export enum CursorState {
+export const enum CursorState {
   Normal,
   TargetingExplorer,
   TargetingForces,
 }
 
-export enum TooltipName {
+export const enum TooltipName {
   None,
   SilverGrowth,
   SilverCap,
@@ -39,7 +39,6 @@ export enum TooltipName {
   FindArtifact,
   ArtifactStored,
   SelectedSilver,
-  SelectedEnergy,
   Rank,
   Score,
   MiningPause,
