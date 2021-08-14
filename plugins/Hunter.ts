@@ -432,9 +432,12 @@ export default class Plugin {
   constructor() {
     beginCoords = null;
     endCoords = null;
-    df.contractsAPI.contractCaller.queue.invocationIntervalMs = 50
-    df.contractsAPI.contractCaller.queue.maxConcurrency = 100
+    df.contractsAPI.contractCaller.queue.invocationIntervalMs = 50;
+    df.contractsAPI.contractCaller.queue.maxConcurrency = 100;
+    df.contractsAPI.txExecutor.queue.invocationIntervalMs = 500 ;
+    df.contractsAPI.txExecutor.queue.maxConcurrency = 3;
     this.beginXY = document.createElement("div");
+
     this.endXY = document.createElement("div");
   }
 
