@@ -211,7 +211,7 @@ export class ContractsAPI extends EventEmitter {
   }
 
   public async setupEventListeners(): Promise<void> {
-    const { coreContract, gptCreditContract, scoreContract } = this;
+    const { coreContract, scoreContract } = this;
 
     const filter = {
       address: coreContract.address,
@@ -353,15 +353,6 @@ export class ContractsAPI extends EventEmitter {
 
     this.ethConnection.subscribeToContractEvents(coreContract, eventHandlers, filter);
 
-    gptCreditContract.on(
-      ContractEvent.ChangedGPTCreditPrice,
-      async (newPrice: EthersBN, _: Event) => {
-        this.emit(
-          ContractsAPIEvent.ChangedGPTCreditPrice,
-          parseFloat(ethers.utils.formatEther(newPrice.toString()))
-        );
-      }
-    );
     scoreContract.on(
       ContractEvent.LocationClaimed,
       async (revealerAddr: string, _previousClaimer: string, location: EthersBN, _: Event) => {
@@ -377,7 +368,7 @@ export class ContractsAPI extends EventEmitter {
   }
 
   public removeEventListeners(): void {
-    const { coreContract, gptCreditContract, scoreContract } = this;
+    const { coreContract, scoreContract } = this;
 
     coreContract.removeAllListeners(ContractEvent.PlayerInitialized);
     coreContract.removeAllListeners(ContractEvent.ArrivalQueued);
@@ -391,7 +382,6 @@ export class ContractsAPI extends EventEmitter {
     coreContract.removeAllListeners(ContractEvent.ArtifactDeactivated);
     coreContract.removeAllListeners(ContractEvent.LocationRevealed);
     coreContract.removeAllListeners(ContractEvent.PlanetSilverWithdrawn);
-    gptCreditContract.removeAllListeners(ContractEvent.ChangedGPTCreditPrice);
     scoreContract.removeAllListeners(ContractEvent.LocationClaimed);
   }
 
