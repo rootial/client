@@ -5,9 +5,20 @@ import {
   useState,
 } from "https://unpkg.com/htm/preact/standalone.module.js";
 
-const PIRATES = "0x0000000000000000000000000000000000000000";
+import { EMPTY_ADDRESS } from "https://cdn.skypack.dev/@darkforest_eth/constants";
+import {
+  ArtifactType,
+  ArtifactTypeNames,
+  ArtifactRarity,
+  ArtifactRarityNames,
+  PlanetLevel,
+  PlanetType,
+  PlanetTypeNames
+} from "https://cdn.skypack.dev/@darkforest_eth/types";
 
-const PLANET_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => ({
+const PIRATES = EMPTY_ADDRESS;
+
+const PLANET_LEVELS = Object.values(PlanetLevel).map((level) => ({
   value: level,
   text: level.toString(),
 }));
@@ -17,11 +28,7 @@ const ARTIFACT_ANY_RARITY = -1;
 
 const PLANET_TYPES = [
   { value: PLANET_ANY_TYPE, text: "Any" },
-  { value: 0, text: "Planet" },
-  { value: 1, text: "Asteroid Field" },
-  { value: 2, text: "Foundry" },
-  { value: 3, text: "Spacetime Rip" },
-  { value: 4, text: "Quasar" },
+  ...Object.values(PlanetType).filter((type) => type !== PlanetType.Unknown).map((type) => ({ value: type, text: PlanetTypeNames[type] }))
 ];
 
 const OwnerType = {
@@ -43,42 +50,7 @@ const ARTIFACT_TYPES = [
     value: ARTIFACT_ANY_TYPE,
     text: "Any",
   },
-  {
-    value: 1,
-    text: "Monolith",
-  },
-  {
-    value: 2,
-    text: "Colossus",
-  },
-  {
-    value: 3,
-    text: "Spaceship",
-  },
-  {
-    value: 4,
-    text: "Pyramid",
-  },
-  {
-    value: 5,
-    text: "Wormhole",
-  },
-  {
-    value: 6,
-    text: "PlanetaryShield",
-  },
-  {
-    value: 7,
-    text: "PhotoidCannon",
-  },
-  {
-    value: 8,
-    text: "BloomFilter",
-  },
-  {
-    value: 9,
-    text: "BlackDomain",
-  },
+  ...Object.values(ArtifactType).filter((type) => type !== ArtifactType.Unknown).map((type) => ({ value: type, text: ArtifactTypeNames[type] }))
 ];
 
 const ARTIFACT_RARITIES = [
@@ -86,26 +58,7 @@ const ARTIFACT_RARITIES = [
     value: ARTIFACT_ANY_RARITY,
     text: "Any",
   },
-  {
-    value: 1,
-    text: "Common",
-  },
-  {
-    value: 2,
-    text: "Rare",
-  },
-  {
-    value: 3,
-    text: "Epic",
-  },
-  {
-    value: 4,
-    text: "Legendary",
-  },
-  {
-    value: 5,
-    text: "Mythic",
-  },
+  ...Object.values(ArtifactRarity).filter((rarity) => rarity !== ArtifactRarity.Unknown).map((rarity) => ({ value: rarity, text: ArtifactRarityNames[rarity] }))
 ];
 
 function CreateSelectFilter({ items, selectedValue, onSelect }) {
@@ -124,8 +77,8 @@ function CreateSelectFilter({ items, selectedValue, onSelect }) {
       onChange=${(e) => onSelect(Number(e.target.value))}
     >
       ${items.map(
-        ({ value, text }) => html`<option value=${value}>${text}</option>`
-      )}
+      ({ value, text }) => html`<option value=${value}>${text}</option>`
+  )}
     </select>
   `;
 }
@@ -167,18 +120,18 @@ function LevelFilter({ levels, selectedLevels, onSelectLevel }) {
     </div>
   `;
   const inRange = (value) =>
-    value <= Math.max(...selectedLevels) &&
-    value >= Math.min(...selectedLevels);
+      value <= Math.max(...selectedLevels) &&
+      value >= Math.min(...selectedLevels);
   return html`
     <div style=${buttonsRow}>
       ${levels.map(({ value, text }) =>
-        button({
-          value,
-          text,
-          onClick: onSelectLevel,
-          selected: inRange(value),
-        })
-      )}
+      button({
+        value,
+        text,
+        onClick: onSelectLevel,
+        selected: inRange(value),
+      })
+  )}
     </div>
   `;
 }
@@ -214,9 +167,9 @@ function createButton({ loading, onClick, ctaText }) {
   return html` <button
     disabled=${loading}
     style=${{
-      ...buttonStyle,
-      ...(hover ? hoverStyle : {}),
-    }}
+    ...buttonStyle,
+    ...(hover ? hoverStyle : {}),
+  }}
     onClick=${onClick}
     onMouseEnter=${() => setHover(true)}
     onMouseLeave=${() => setHover(false)}
@@ -229,19 +182,19 @@ function createButton({ loading, onClick, ctaText }) {
 let eligiblePlanets = [];
 
 function App({}) {
-  const [selectedLevels, setSelectedLevels] = useState([1, 9]);
+  const [selectedLevels, setSelectedLevels] = useState([0, 9]);
   const [selectedPlanetType, setSelectedPlanetType] = useState(-1);
   const [selectedArtifactType, setSelectedArtifactType] = useState(-1);
   const [selectedArtifactRarity, setSelectedArtifactRarity] = useState(-1);
   const [selectedOwnerType, setSelectedOwnerType] = useState(
-    OwnerType.CLAIMED_BY_MYSELF
+      OwnerType.CLAIMED_BY_MYSELF
   );
 
   // @ts-ignore
   const usePlanetArtifacts = useCallback((planet) => {
     const artifacts = planet.heldArtifactIds
-      ? ui.getArtifactsWithIds(planet.heldArtifactIds)
-      : [];
+        ? ui.getArtifactsWithIds(planet.heldArtifactIds)
+        : [];
     return artifacts.filter((a) => !!a);
   });
 
@@ -266,10 +219,10 @@ function App({}) {
     for (let planet of df.getAllPlanets()) {
       // check planet level in range
       if (
-        !(
-          planet.planetLevel >= Math.min(...selectedLevels) &&
-          planet.planetLevel <= Math.max(...selectedLevels)
-        )
+          !(
+              planet.planetLevel >= Math.min(...selectedLevels) &&
+              planet.planetLevel <= Math.max(...selectedLevels)
+          )
       ) {
         continue;
       }
@@ -277,16 +230,16 @@ function App({}) {
       // check owner type
       const ownerType = getOwnerType(planet);
       if (
-        selectedOwnerType != OwnerType.ANYONE &&
-        ownerType !== selectedOwnerType
+          selectedOwnerType != OwnerType.ANYONE &&
+          ownerType !== selectedOwnerType
       ) {
         continue;
       }
 
       // check planet type
       if (
-        selectedPlanetType !== PLANET_ANY_TYPE &&
-        planet.planetType != selectedPlanetType
+          selectedPlanetType !== PLANET_ANY_TYPE &&
+          planet.planetType != selectedPlanetType
       ) {
         continue;
       }
@@ -294,8 +247,8 @@ function App({}) {
       // if artifact type or rarity selected, then we require a planet contain a artifact satisfying
       // requirements
       const mustHoldArtifacts =
-        selectedArtifactRarity !== ARTIFACT_ANY_RARITY ||
-        selectedArtifactType !== ARTIFACT_ANY_TYPE;
+          selectedArtifactRarity !== ARTIFACT_ANY_RARITY ||
+          selectedArtifactType !== ARTIFACT_ANY_TYPE;
 
       if (!mustHoldArtifacts) {
         planets.push(planet);
@@ -305,14 +258,14 @@ function App({}) {
         if (selectedArtifactType !== ARTIFACT_ANY_TYPE) {
           // @ts-ignore
           artifacts = artifacts.filter(
-            (artifact) => artifact.artifactType === selectedArtifactType
+              (artifact) => artifact.artifactType === selectedArtifactType
           );
         }
 
         if (selectedArtifactRarity !== ARTIFACT_ANY_RARITY) {
           // @ts-ignore
           artifacts = artifacts.filter(
-            (artifact) => artifact.rarity >= selectedArtifactRarity
+              (artifact) => artifact.rarity >= selectedArtifactRarity
           );
         }
         if (artifacts.length > 0) {
@@ -331,7 +284,7 @@ function App({}) {
 
   const resetEligiblePlanets = useCallback(() => {
     eligiblePlanets = [];
-    setSelectedLevels([1, 9]);
+    setSelectedLevels([0, 9]);
     setSelectedPlanetType(PLANET_ANY_TYPE);
     setSelectedArtifactRarity(ARTIFACT_ANY_RARITY);
     setSelectedArtifactType(ARTIFACT_ANY_TYPE);
@@ -357,12 +310,12 @@ function App({}) {
       levels=${PLANET_LEVELS}
       selectedLevels=${selectedLevels}
       onSelectLevel=${(level) => {
-        if (selectedLevels.length == 2) {
-          setSelectedLevels([level]);
-        } else {
-          setSelectedLevels([level, selectedLevels[0]]);
-        }
-      }}
+    if (selectedLevels.length == 2) {
+      setSelectedLevels([level]);
+    } else {
+      setSelectedLevels([level, selectedLevels[0]]);
+    }
+  }}
     />`;
 
   const planetTypeFilter = html`<div>
@@ -388,10 +341,10 @@ function App({}) {
   const planetUnionFilters = html`
     <div
       style=${{
-        ...flexRow,
-        justifyContent: "space-between",
-        marginTop: "10px",
-      }}
+    ...flexRow,
+    justifyContent: "space-between",
+    marginTop: "10px",
+  }}
     >
       ${planetTypeFilter} ${ownerTypeFilter}
     </div>
@@ -447,11 +400,11 @@ function App({}) {
     <${createDivider} />
     <div
       style=${{
-        ...flexRow,
-        justifyContent: "space-around",
-        width: "100%",
-        marginTop: "10px",
-      }}
+    ...flexRow,
+    justifyContent: "space-around",
+    width: "100%",
+    marginTop: "10px",
+  }}
     >
       ${submitButton} ${resetButton}
     </div>
@@ -475,17 +428,17 @@ class Plugin {
       if (!planet.location) continue;
       let { x, y } = planet.location.coords;
 
-      // add red circle when level <= 3
+      // add red circle when level <= 4
       if (planet.planetLevel <= 4) {
         ctx.lineWidth = 1.5;
         ctx.strokeStyle = "dashed";
         ctx.beginPath();
         ctx.arc(
-          viewport.worldToCanvasX(x),
-          viewport.worldToCanvasY(y),
-          viewport.worldToCanvasDist(ui.getRadiusOfPlanetLevel(3) * 6),
-          0,
-          2 * Math.PI
+            viewport.worldToCanvasX(x),
+            viewport.worldToCanvasY(y),
+            viewport.worldToCanvasDist(ui.getRadiusOfPlanetLevel(3) * 6),
+            0,
+            2 * Math.PI
         );
         // ctx.fill();
         ctx.stroke();
@@ -494,13 +447,13 @@ class Plugin {
 
       ctx.beginPath();
       ctx.arc(
-        viewport.worldToCanvasX(x),
-        viewport.worldToCanvasY(y),
-        viewport.worldToCanvasDist(
-          ui.getRadiusOfPlanetLevel(planet.planetLevel)
-        ),
-        0,
-        2 * Math.PI
+          viewport.worldToCanvasX(x),
+          viewport.worldToCanvasY(y),
+          viewport.worldToCanvasDist(
+              ui.getRadiusOfPlanetLevel(planet.planetLevel)
+          ),
+          0,
+          2 * Math.PI
       );
       ctx.fill();
       // ctx.stroke();

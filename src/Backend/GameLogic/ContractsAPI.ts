@@ -17,6 +17,7 @@ import {
   aggregateBulkGetter,
   ContractCaller,
   EthConnection,
+  ThrottledConcurrentQueue,
   ethToWei,
   QueuedTransaction,
   TxExecutor,
@@ -163,7 +164,7 @@ export class ContractsAPI extends EventEmitter {
 
   public constructor(ethConnection: EthConnection) {
     super();
-    this.contractCaller = new ContractCaller();
+    this.contractCaller = new ContractCaller(new ThrottledConcurrentQueue(10, 100, 20));
     this.ethConnection = ethConnection;
     this.txExecutor = new TxExecutor(
       ethConnection,

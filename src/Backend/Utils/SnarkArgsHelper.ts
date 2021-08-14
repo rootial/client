@@ -52,7 +52,7 @@ class SnarkProverQueue {
   private taskCount: number;
 
   constructor() {
-    this.taskQueue = FastQueue(this.execute.bind(this), 1);
+    this.taskQueue = FastQueue(this.execute.bind(this), 7);
     this.taskCount = 0;
   }
 
