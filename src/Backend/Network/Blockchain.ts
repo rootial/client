@@ -90,7 +90,7 @@ export function getEthConnection(): Promise<EthConnection> {
   const defaultUrl = process.env.DEFAULT_RPC as string;
 
   let url: string;
-
+  console.log(`isprod :${ process.env.NODE_ENV}:`, isProd);
   if (isProd) {
     url = localStorage.getItem('XDAI_RPC_ENDPOINT_v5') || defaultUrl;
   } else {

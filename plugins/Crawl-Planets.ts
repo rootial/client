@@ -1,15 +1,32 @@
-let planetMoves = new Set();
+// Crawl Planets
+//
+// Capture unowned planets around you!
+
+import { EMPTY_ADDRESS } from "https://cdn.skypack.dev/@darkforest_eth/constants";
+import {
+    PlanetType,
+    PlanetTypeNames,
+    PlanetLevel,
+    PlanetLevelNames,
+} from "https://cdn.skypack.dev/@darkforest_eth/types";
+
+const players = [
+    EMPTY_ADDRESS
+];
+
 
 class Plugin {
     constructor() {
-        this.minPlanetLevel = 3;
-        this.maxLevelToUse = 5;
+        this.planetType = PlanetType.SILVER_MINE;
+        this.minimumEnergyAllowed = 15;
+        this.minPlanetLevelTo = PlanetLevel.ONE;
+        this.maxPlanetLevelTo = PlanetLevel.NINE;
+        this.minPlanetLevelFrom = PlanetLevel.ZERO;
+        this.maxPlanetLevelFrom = PlanetLevel.THREE;
         this.maxEnergyPercent = 85;
-        this.mustHaveArtifact = true;
     }
-
     render(container) {
-        container.style.width = '200px';
+        container.style.width = '400px';
 
         let stepperLabel = document.createElement('label');
         stepperLabel.innerText = 'Max % energy to spend';
@@ -37,67 +54,157 @@ class Plugin {
             }
         }
 
-        let levelLabel = document.createElement('label');
-        levelLabel.innerText = 'Min. planets to capture';
-        levelLabel.style.display = 'block';
+        let minimumEnergyAllowedLabel = document.createElement('label');
+        minimumEnergyAllowedLabel.innerText = '% energy to fill after capture';
+        minimumEnergyAllowedLabel.style.display = 'block';
 
-        let level = document.createElement('select');
-        level.style.background = 'rgb(8,8,8)';
-        level.style.width = '100%';
-        level.style.marginTop = '10px';
-        level.style.marginBottom = '10px';
-        [0, 1, 2, 3, 4, 5, 6, 7].forEach(lvl => {
+        let minimumEnergyAllowedSelect = document.createElement('input');
+        minimumEnergyAllowedSelect.type = 'range';
+        minimumEnergyAllowedSelect.min = '0';
+        minimumEnergyAllowedSelect.max = '100';
+        minimumEnergyAllowedSelect.step = '1';
+        minimumEnergyAllowedSelect.value = `${this.minimumEnergyAllowed}`;
+        minimumEnergyAllowedSelect.style.width = '80%';
+        minimumEnergyAllowedSelect.style.height = '24px';
+
+        let percentminimumEnergyAllowed = document.createElement('span');
+        percentminimumEnergyAllowed.innerText = `${minimumEnergyAllowedSelect.value}%`;
+        percentminimumEnergyAllowed.style.float = 'right';
+
+        minimumEnergyAllowedSelect.onchange = (evt) => {
+            if (parseInt(evt.target.value, 10) === 0) percentminimumEnergyAllowed.innerText = `1 energy`;
+            else
+                percentminimumEnergyAllowed.innerText = `${evt.target.value}%`;
+            try {
+                this.minimumEnergyAllowed = parseInt(evt.target.value, 10);
+            } catch (e) {
+                console.error('could not parse minimum energy allowed percent', e);
+            }
+        }
+
+        let minLevelToLabel = document.createElement('label');
+        minLevelToLabel.innerText = 'Min. level to capture';
+        minLevelToLabel.style.display = 'block';
+
+        let minLevelTo = document.createElement('select');
+        minLevelTo.style.background = 'rgb(8,8,8)';
+        minLevelTo.style.width = '100%';
+        minLevelTo.style.marginTop = '10px';
+        minLevelTo.style.marginBottom = '10px';
+        Object.entries(PlanetLevel).forEach(([name, lvl]) => {
             let opt = document.createElement('option');
             opt.value = `${lvl}`;
-            opt.innerText = `Level ${lvl}`;
-            level.appendChild(opt);
+            opt.innerText = `${PlanetLevelNames[lvl]}`;
+            minLevelTo.appendChild(opt);
         });
-        level.value = `${this.minPlanetLevel}`;
+        minLevelTo.value = `${this.minPlanetLevelTo}`;
 
-        level.onchange = (evt) => {
+        minLevelTo.onchange = (evt) => {
             try {
-                this.minPlanetLevel = parseInt(evt.target.value);
+                this.minPlanetLevelTo = parseInt(evt.target.value, 10);
             } catch (e) {
                 console.error('could not parse planet level', e);
             }
         }
 
+        let maxLevelToLabel = document.createElement('label');
+        maxLevelToLabel.innerText = 'Max. level to capture';
+        maxLevelToLabel.style.display = 'block';
 
-        let maxLevelToUseLabel = document.createElement('label');
-        maxLevelToUseLabel.innerText = 'Max. planet level to use';
-        maxLevelToUseLabel.style.display = 'block';
-
-        let maxLevelToUse = document.createElement('select');
-        maxLevelToUse.style.background = 'rgb(8,8,8)';
-        maxLevelToUse.style.width = '100%';
-        maxLevelToUse.style.marginTop = '10px';
-        maxLevelToUse.style.marginBottom = '10px';
-        [0, 1, 2, 3, 4, 5, 6, 7].forEach(lvl => {
+        let maxLevelTo = document.createElement('select');
+        maxLevelTo.style.background = 'rgb(8,8,8)';
+        maxLevelTo.style.width = '100%';
+        maxLevelTo.style.marginTop = '10px';
+        maxLevelTo.style.marginBottom = '10px';
+        Object.entries(PlanetLevel).forEach(([name, lvl]) => {
             let opt = document.createElement('option');
             opt.value = `${lvl}`;
-            opt.innerText = `Level ${lvl}`;
-            maxLevelToUse.appendChild(opt);
+            opt.innerText = `${PlanetLevelNames[lvl]}`;
+            maxLevelTo.appendChild(opt);
         });
-        maxLevelToUse.value = `${this.maxLevelToUse}`;
+        maxLevelTo.value = `${this.maxPlanetLevelTo}`;
 
-        maxLevelToUse.onchange = (evt) => {
+        maxLevelTo.onchange = (evt) => {
             try {
-                this.maxLevelToUse = parseInt(evt.target.value);
+                this.maxPlanetLevelTo = parseInt(evt.target.value, 10);
             } catch (e) {
-                console.error('could not parse planet maxLevel', e);
+                console.error('could not parse planet level', e);
             }
         }
 
-        let mustHaveArtifactLabel = document.createElement('label');
-        mustHaveArtifactLabel.innerText = 'Only artifact';
+        let levelLabelFromMin = document.createElement('label');
+        levelLabelFromMin.innerText = 'Min. level to send energy from';
+        levelLabelFromMin.style.display = 'block';
 
-        let mustHaveArtifactCheck = document.createElement('input');
-        mustHaveArtifactCheck.type = 'checkbox';
-        mustHaveArtifactCheck.defaultChecked = this.mustHaveArtifact;
-        mustHaveArtifactCheck.title = 'Check this if only want to capture planet with artifact'
-        mustHaveArtifactCheck.style.marginLeft = '40px';
-        mustHaveArtifactCheck.onchange = () => {
-            this.mustHaveArtifact = !this.mustHaveArtifact;
+        let levelFromMin = document.createElement('select');
+        levelFromMin.style.background = 'rgb(8,8,8)';
+        levelFromMin.style.width = '100%';
+        levelFromMin.style.marginTop = '10px';
+        levelFromMin.style.marginBottom = '10px';
+        Object.entries(PlanetLevel).forEach(([name, lvl]) => {
+            let opt = document.createElement('option');
+            opt.value = `${lvl}`;
+            opt.innerText = `${PlanetLevelNames[lvl]}`;
+            levelFromMin.appendChild(opt);
+        });
+        levelFromMin.value = `${this.minPlanetLevelFrom}`;
+
+        levelFromMin.onchange = (evt) => {
+            try {
+                this.minPlanetLevelFrom = parseInt(evt.target.value, 10);
+            } catch (e) {
+                console.error('could not parse planet level', e);
+            }
+        }
+
+        let levelLabelFromMax = document.createElement('label');
+        levelLabelFromMax.innerText = 'Max. level to send energy from';
+        levelLabelFromMax.style.display = 'block';
+
+        let levelFromMax = document.createElement('select');
+        levelFromMax.style.background = 'rgb(8,8,8)';
+        levelFromMax.style.width = '100%';
+        levelFromMax.style.marginTop = '10px';
+        levelFromMax.style.marginBottom = '10px';
+        Object.entries(PlanetLevel).forEach(([name, lvl]) => {
+            let opt = document.createElement('option');
+            opt.value = `${lvl}`;
+            opt.innerText = `${PlanetLevelNames[lvl]}`;
+            levelFromMax.appendChild(opt);
+        });
+        levelFromMax.value = `${this.maxPlanetLevelFrom}`;
+
+        levelFromMax.onchange = (evt) => {
+            try {
+                this.maxPlanetLevelFrom = parseInt(evt.target.value, 10);
+            } catch (e) {
+                console.error('could not parse planet level', e);
+            }
+        }
+
+        let planetTypeLabel = document.createElement('label');
+        planetTypeLabel.innerText = 'Planet type to capture';
+        planetTypeLabel.style.display = 'block';
+
+        let planetType = document.createElement('select');
+        planetType.style.background = 'rgb(8,8,8)';
+        planetType.style.width = '100%';
+        planetType.style.marginTop = '10px';
+        planetType.style.marginBottom = '10px';
+        Object.entries(PlanetType).forEach(([name, key]) => {
+            let opt = document.createElement('option');
+            opt.value = `${key}`;
+            opt.innerText = `${PlanetTypeNames[key]}`;
+            planetType.appendChild(opt);
+        });
+        planetType.value = `${this.planetType}`;
+
+        planetType.onchange = (evt) => {
+            try {
+                this.planetType = parseInt(evt.target.value, 10);
+            } catch (e) {
+                console.error('could not parse planet planet type', e);
+            }
         }
 
         let message = document.createElement('div');
@@ -105,20 +212,20 @@ class Plugin {
         let button = document.createElement('button');
         button.style.width = '100%';
         button.style.marginBottom = '10px';
-        button.style.marginTop = '10px';
         button.innerHTML = 'Crawl from selected!'
         button.onclick = () => {
-            planetMoves.clear();
             let planet = ui.getSelectedPlanet();
             if (planet) {
                 message.innerText = 'Please wait...';
-                capturePlanets(
+                let moves = capturePlanets(
                     planet.locationId,
-                    this.minPlanetLevel,
+                    this.minPlanetLevelTo,
+                    this.maxPlanetLevelTo,
                     this.maxEnergyPercent,
-                    this.mustHaveArtifact
+                    this.planetType,
+                    this.minimumEnergyAllowed,
                 );
-                message.innerText = `Crawling ${planetMoves.size} planets.`;
+                message.innerText = `Crawling ${moves} ${PlanetTypeNames[this.planetType]}s.`;
             } else {
                 message.innerText = 'No planet selected.';
             }
@@ -129,33 +236,44 @@ class Plugin {
         globalButton.style.marginBottom = '10px';
         globalButton.innerHTML = 'Crawl everything!'
         globalButton.onclick = () => {
-            planetMoves.clear();
             message.innerText = 'Please wait...';
+
+            let moves = 0;
             for (let planet of df.getMyPlanets()) {
-                // filter out the planet level above this.maxLevelToUse
-                if (planet.planetLevel > this.maxLevelToUse) continue;
-                setTimeout(() => {
-                    capturePlanets(
-                        planet.locationId,
-                        this.minPlanetLevel,
-                        this.maxEnergyPercent,
-                        this.mustHaveArtifact
-                    );
-                    message.innerText = `Crawling ${planetMoves.size} planets.`;
-                }, 0);
+                if (planet.planetLevel >= this.minPlanetLevelFrom && planet.planetLevel <= this.maxPlanetLevelFrom) {
+                    setTimeout(() => {
+                        moves += capturePlanets(
+                            planet.locationId,
+                            this.minPlanetLevelTo,
+                            this.maxPlanetLevelTo,
+                            this.maxEnergyPercent,
+                            this.planetType,
+                            this.minimumEnergyAllowed,
+                        );
+                        message.innerText = `Crawling ${moves} ${PlanetTypeNames[this.planetType]}s.`;
+                    }, 0);
+                }
             }
         }
 
         container.appendChild(stepperLabel);
         container.appendChild(stepper);
         container.appendChild(percent);
-        container.appendChild(levelLabel);
-        container.appendChild(level);
-        container.appendChild(maxLevelToUseLabel);
-        container.appendChild(maxLevelToUse);
-        container.appendChild(mustHaveArtifactLabel);
-        container.appendChild(mustHaveArtifactCheck);
+        container.appendChild(minimumEnergyAllowedLabel);
+        container.appendChild(minimumEnergyAllowedSelect);
+        container.appendChild(percentminimumEnergyAllowed);
+        container.appendChild(minLevelToLabel);
+        container.appendChild(minLevelTo);
+        container.appendChild(maxLevelToLabel);
+        container.appendChild(maxLevelTo);
+        container.appendChild(planetTypeLabel);
+        container.appendChild(planetType);
         container.appendChild(button);
+        container.append(document.createElement("br"), document.createElement("br"));
+        container.appendChild(levelLabelFromMin);
+        container.appendChild(levelFromMin);
+        container.appendChild(levelLabelFromMax);
+        container.appendChild(levelFromMax);
         container.appendChild(globalButton);
         container.appendChild(message);
     }
@@ -164,44 +282,40 @@ class Plugin {
 export default Plugin;
 
 
-function capturePlanets(fromId, minCaptureLevel, maxDistributeEnergyPercent, mustHaveArtifact) {
+function capturePlanets(fromId, minCaptureLevel, maxCaptureLevel, maxDistributeEnergyPercent, planetType, minimumEnergyAllowed = 0) {
     const planet = df.getPlanetWithId(fromId);
     const from = df.getPlanetWithId(fromId);
 
     // Rejected if has pending outbound moves
     const unconfirmed = df.getUnconfirmedMoves().filter(move => move.from === fromId)
-
     if (unconfirmed.length !== 0) {
-        return;
+        return 0;
     }
 
     const candidates_ = df.getPlanetsInRange(fromId, maxDistributeEnergyPercent)
-        .filter(p => (
-            p.owner !== df.account &&
-            p.owner === "0x0000000000000000000000000000000000000000" &&
-            p.planetLevel >= minCaptureLevel
-        ))
-        .filter(p => (!mustHaveArtifact || df.isPlanetMineable(p)))
-        .map(to => {
-            return [to, distance(from, to)]
-        })
-        .sort((a, b) => a[1] - b[1]);
+    .filter(p => (
+        p.owner !== df.account &&
+        players.includes(p.owner) &&
+        p.planetLevel >= minCaptureLevel &&
+        p.planetLevel <= maxCaptureLevel &&
+        p.planetType === planetType
+    ))
+    .map(to => {
+        return [to, distance(from, to)]
+    })
+    .sort((a, b) => a[1] - b[1]);
 
     let i = 0;
     const energyBudget = Math.floor((maxDistributeEnergyPercent / 100) * planet.energy);
 
     let energySpent = 0;
+    let moves = 0;
     while (energyBudget - energySpent > 0 && i < candidates_.length) {
 
         const energyLeft = energyBudget - energySpent;
 
         // Remember its a tuple of candidates and their distance
         const candidate = candidates_[i++][0];
-
-        // Rejected if it is processed before
-        if (planetMoves.has(candidate.locationId)) {
-            continue;
-        }
 
         // Rejected if has unconfirmed pending arrivals
         const unconfirmed = df.getUnconfirmedMoves().filter(move => move.to === candidate.locationId)
@@ -215,19 +329,23 @@ function capturePlanets(fromId, minCaptureLevel, maxDistributeEnergyPercent, mus
             continue;
         }
 
-        const energyArriving = (candidate.energyCap * 0.15) + (candidate.energy * (candidate.defense / 100));
+        // set minimum above energy to % or 1 (if 0%), depending on minimumEnergyAllowed value
+        if (minimumEnergyAllowed === 0) minimumEnergyAllowed = 1
+        else
+            minimumEnergyAllowed = candidate.energyCap * minimumEnergyAllowed / 100
+        const energyArriving = minimumEnergyAllowed + (candidate.energy * (candidate.defense / 100));
         // needs to be a whole number for the contract
         const energyNeeded = Math.ceil(df.getEnergyNeededForMove(fromId, candidate.locationId, energyArriving));
         if (energyLeft - energyNeeded < 0) {
             continue;
         }
 
-        setTimeout(() => {
-            df.move(fromId, candidate.locationId, energyNeeded, 0);
-        }, 10);
+        df.move(fromId, candidate.locationId, energyNeeded, 0);
         energySpent += energyNeeded;
-        planetMoves.add(candidate.locationId);
+        moves += 1;
     }
+
+    return moves;
 }
 
 function getArrivalsForPlanet(planetId) {

@@ -34,7 +34,11 @@ let beginCoords: WorldCoords = null;
 let endCoords: WorldCoords = null;
 
 let planetMoves = new Set();
+let planetMovesMap = new Map();
 
+// function planetMovesCount(locationId, move) {
+//   planetMovesMap
+// }
 function clearRangeCoords() {
   beginCoords = null;
   endCoords = null;
@@ -432,6 +436,9 @@ export default class Plugin {
   constructor() {
     beginCoords = null;
     endCoords = null;
+    this.root = null;
+    this.container = null
+
     df.contractsAPI.contractCaller.queue.invocationIntervalMs = 50;
     df.contractsAPI.contractCaller.queue.maxConcurrency = 100;
     df.contractsAPI.txExecutor.queue.invocationIntervalMs = 500 ;
@@ -472,12 +479,14 @@ export default class Plugin {
   };
 
   async render(container) {
+    this.container = container;
+
     container.style.width = "450px";
 
     window.addEventListener("mousemove", this.onMouseMove);
     window.addEventListener("click", this.onClick);
 
-    render(html`<${App} />`, container);
+    this.root = render(html`<${App} />`, container);
   }
 
   draw(ctx) {
@@ -506,6 +515,8 @@ export default class Plugin {
 
   destroy() {
     window.removeEventListener("mousemove", this.onMouseMove);
+    window.removeEventListener("click", this.onClick);
+    render(null, this.container, this.root);
   }
 }
 
@@ -568,7 +579,7 @@ function getEligiblePlanets(
       planetFilter.selectedLevels(selectedPlanetLevels) &&
       planetFilter.inSelectedRange(planetRange)
     );
-  });
+  }).sort((a, b) => b.energy - a.energy);
 }
 
 function capturePlanets(
@@ -606,9 +617,8 @@ function capturePlanets(
     .map((to) => {
       return [to, distance(from, to)];
     })
-    .sort((a, b) => a[1] - b[1]);
+    .sort((a, b) => a[0].planetLevel - b[0].planetLevel);
 
-  console.log('planet:  ', planet)
   let i = 0;
   const energyBudget = Math.floor(
     (maxDistributeEnergyPercent / 100) * planet.energy
@@ -621,41 +631,50 @@ function capturePlanets(
     // Remember its a tuple of candidates and their distance
     const candidate = candidates_[i++][0];
 
-    // Rejected if it is processed before
-    if (planetMoves.has(candidate.locationId)) {
+    // Rejected if it is processed before and level < 3
+    if (planetMoves.has(candidate.locationId) && candidate.planetLevel < PlanetLevel.THREE) {
       continue;
     }
 
-    // Rejected if has unconfirmed pending arrivals
     const unconfirmed = df
       .getUnconfirmedMoves()
       .filter((move) => move.to === candidate.locationId);
-    if (unconfirmed.length !== 0) {
+    const arrivals = getArrivalsForPlanet(candidate.locationId);
+
+    console.log('unconfirmed moves', unconfirmed.length);
+    if (unconfirmed.length + arrivals.length > 4) {
       continue;
     }
 
-    // Rejected if has pending arrivals
-    const arrivals = getArrivalsForPlanet(candidate.locationId);
-    if (arrivals.length !== 0) {
-      continue;
-    }
+    const totalUnconfirmedEnergy = unconfirmed.reduce(
+      (totalEnergy, nextMove) => totalEnergy + nextMove.forces,
+    0);
+
+    const totalArrivingEnergy = arrivals.reduce((totalEnergy, arrival) => totalEnergy + arrival.energyArriving, 0);
 
     const energyArriving =
-      candidate.energyCap * 0.02 + candidate.energy * (candidate.defense / 100);
+      candidate.energyCap * 0.02 + candidate.energy * (candidate.defense / 100) - totalArrivingEnergy;
     // needs to be a whole number for the contract
     const energyNeeded = Math.ceil(
       df.getEnergyNeededForMove(fromId, candidate.locationId, energyArriving)
     );
+    // can't destory the planet using left energy
     if (energyLeft - energyNeeded < 0) {
-      continue;
-    }
-
-    setTimeout(() => {
+      // move energy left all to high level planets
+      if (candidate.planetLevel >= PlanetLevel.THREE) {
+        const energyArrivingRatioMax = df.getEnergyArrivingForMove(fromId, candidate.locationId, undefined, energyLeft) / from.energyCap;
+        // energy arriving ratio > 10% of energy cap
+        if (energyArrivingRatioMax > 0.1) {
+          df.move(fromId, candidate.locationId, energyLeft, 0);
+          energySpent += energyLeft;
+          planetMoves.add(candidate.locationId);
+        }
+      }
+    } else {
       df.move(fromId, candidate.locationId, energyNeeded, 0);
-    }, 10);
-    energySpent += energyNeeded;
-    planetMoves.add(candidate.locationId);
-    console.log('move: ', planetMoves.size, planet.locationId)
+      energySpent += energyNeeded;
+      planetMoves.add(candidate.locationId);
+    }
   }
 }
 

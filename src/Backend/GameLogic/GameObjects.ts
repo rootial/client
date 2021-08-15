@@ -738,6 +738,7 @@ export class GameObjects {
       }
       this.unconfirmedReveal = txIntent;
     } else if (isUnconfirmedMove(txIntent)) {
+    console.log('unconfirmed move pushed');
       this.unconfirmedMoves[txIntent.actionId] = txIntent;
       const planet = this.getPlanetWithId(txIntent.from);
       if (planet) {
