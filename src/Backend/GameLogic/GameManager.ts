@@ -790,7 +790,7 @@ class GameManager extends EventEmitter {
       });
 
     const unconfirmedTxs = await persistentChunkStore.getUnconfirmedSubmittedEthTxs();
-    const confirmationQueue = new ThrottledConcurrentQueue(10, 100, 5);
+    const confirmationQueue = new ThrottledConcurrentQueue(10, 100, 20);
 
     for (const unconfirmedTx of unconfirmedTxs) {
       // recommits the tx to storage but whatever
@@ -2923,7 +2923,9 @@ class GameManager extends EventEmitter {
 
     if (!from) throw new Error('origin planet unknown');
     if (!to) throw new Error('destination planet unknown');
-    if (!isLocatable(from)) throw new Error('origin location unknown');
+    if (!isLocatable(from)) {
+      console.log('from not locatable', from);
+      throw new Error('origin location unknown');}
     if (!isLocatable(to)) throw new Error('destination location unknown');
 
     const wormholeFactors = this.getWormholeFactors(from, to);

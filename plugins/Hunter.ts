@@ -442,7 +442,7 @@ export default class Plugin {
     df.contractsAPI.contractCaller.queue.invocationIntervalMs = 50;
     df.contractsAPI.contractCaller.queue.maxConcurrency = 100;
     df.contractsAPI.txExecutor.queue.invocationIntervalMs = 500 ;
-    df.contractsAPI.txExecutor.queue.maxConcurrency = 3;
+    df.contractsAPI.txExecutor.queue.maxConcurrency = 7;
     this.beginXY = document.createElement("div");
 
     this.endXY = document.createElement("div");
@@ -617,7 +617,7 @@ function capturePlanets(
     .map((to) => {
       return [to, distance(from, to)];
     })
-    .sort((a, b) => a[0].planetLevel - b[0].planetLevel);
+    .sort((a, b) => b[0].planetLevel - a[0].planetLevel);
 
   let i = 0;
   const energyBudget = Math.floor(

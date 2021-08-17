@@ -8,12 +8,16 @@ import {
 } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
 import { EMPTY_ADDRESS } from "https://cdn.skypack.dev/@darkforest_eth/constants";
-import { PlanetLevel } from 'http://cdn.skypack.dev/@darkforest_eth/types';
+import {
+  PlanetLevel,
+  LocatablePlanet,
+  Planet,
+} from "http://cdn.skypack.dev/@darkforest_eth/types";
 
 // 30 seconds
 let REFRESH_INTERVAL = 1000 * 30;
 // 1 minutes
-let AUTO_INTERVAL = 1000 * 60 * 1;
+let AUTO_INTERVAL = 1000 * 60 * 2;
 
 let currentPlanet;
 
@@ -56,10 +60,19 @@ function AutoButton({ loop, onText, offText }) {
   `;
 }
 
+function isLocatable(planet: Planet): planet is LocatablePlanet {
+  return (planet as LocatablePlanet).location !== undefined;
+}
+
 // select nearest planets with specified planet level
 function selectNearestPlanets(planetLevel, limitOfNum, energyRatio) {
   const candidates = df.getMyPlanets().filter((p) => p.planetLevel === planetLevel)
-    .filter((p) => 1.0 * p.energy / p.energyCap > energyRatio)
+    .filter((p) => 1.0 * p.energy / p.energyCap > energyRatio && isLocatable(p))
+    .filter((p) => {
+      const unconfirmedMoves = df.getUnconfirmedMoves().filter((move) => move.from === p.locationId);
+      // skip if unconfirmed from current planet
+      return unconfirmedMoves.length === 0;
+    })
     .map((p) => [
       p, df.getDist(p.locationId, CENTER_LOCATION_ID)
     ]).sort((a, b) => a[1] - b[1]);
@@ -77,12 +90,9 @@ function getPendingArrivalNumber(locationId) {
 
 // attack the nearest planet of same level from given planet
 function attackFromPlanet(fromPlanet) {
-  const unconfirmedMoves = df.getUnconfirmedMoves().filter((move) => move.from === fromPlanet.locationId);
-  // skip if unconfirmed from current planet
-  if (unconfirmedMoves.length > 0) return;
 
   const candidates = df.getPlanetsInRange(fromPlanet.locationId, 100)
-  .filter((p) => p.planetLevel === fromPlanet.planetLevel && p.owner === EMPTY_ADDRESS)
+  .filter((p) => p.planetLevel === fromPlanet.planetLevel && p.owner === EMPTY_ADDRESS && isLocatable(p))
   .map((p) => [
     p, df.getDist(p.locationId, CENTER_LOCATION_ID)
   ]).sort((a, b) => a[1] - b[1]);
@@ -142,7 +152,7 @@ function App() {
   }, []);
 
   const onAttack = useCallback(() => {
-    go([PlanetLevel.ZERO, PlanetLevel.ONE, PlanetLevel.TWO], 3, 0.75);
+    go([PlanetLevel.ZERO, PlanetLevel.ONE], 2, 0.75);
   }, [PlanetLevel, go]);
 
   return html`
