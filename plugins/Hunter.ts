@@ -1,3 +1,5 @@
+// author: https://twitter.com/lulks4
+
 import {
   html,
   render,
@@ -10,13 +12,22 @@ import {
   PlanetType,
   PlanetTypeNames,
   WorldCoords,
+  LocatablePlanet,
 } from "https://cdn.skypack.dev/@darkforest_eth/types";
-import { EMPTY_ADDRESS } from "@darkforest_eth/constants";
+import { EMPTY_ADDRESS } from "https://cdn.skypack.dev/@darkforest_eth/constants";
 
 const PLANET_LEVELS = Object.values(PlanetLevel).map((level) => ({
   value: level,
   text: level.toString(),
 }));
+
+const CursorMode = {
+  SelectSource: 0,
+  SelectTarget: 1,
+  ResetSource: 2,
+  ResetTarget: 3,
+  NoSelect: 4,
+}
 
 const PLANET_ANY_TYPE = -1;
 
@@ -30,18 +41,63 @@ const PLANET_TYPES = [
     })),
 ];
 
-let beginCoords: WorldCoords = null;
-let endCoords: WorldCoords = null;
+type SelectRange = {
+  beginCoords: WorldCoords | null;
+  endCoords: WorldCoords | null;
+};
+
+let sourcePlanetRange: SelectRange = {
+  beginCoords: null,
+  endCoords: null,
+};
+
+let targetPlanetRange: SelectRange = {
+  beginCoords: null,
+  endCoords: null,
+};
+
+let cursorMode = CursorMode.NoSelect;
 
 let planetMoves = new Set();
-let planetMovesMap = new Map();
 
-// function planetMovesCount(locationId, move) {
-//   planetMovesMap
-// }
-function clearRangeCoords() {
-  beginCoords = null;
-  endCoords = null;
+function clearSourceRangeCoords() {
+  sourcePlanetRange = {
+    beginCoords: null,
+    endCoords: null,
+  };
+}
+
+function clearTargetRangeCoords() {
+  targetPlanetRange = {
+    beginCoords: null,
+    endCoords: null,
+  };
+}
+
+function setCursorMode(mode) {
+  console.log("set cursor mode to ", mode);
+  switch (mode) {
+    case CursorMode.SelectSource:
+      clearSourceRangeCoords();
+      cursorMode = CursorMode.SelectSource;
+      break;
+    case CursorMode.SelectTarget:
+      clearTargetRangeCoords();
+      cursorMode = CursorMode.SelectTarget;
+      break;
+    case CursorMode.ResetSource:
+      clearSourceRangeCoords();
+      cursorMode = CursorMode.ResetSource;
+      break;
+    case CursorMode.ResetTarget:
+      clearTargetRangeCoords();
+      cursorMode = CursorMode.ResetTarget;
+      break;
+    default:
+      clearTargetRangeCoords();
+      clearSourceRangeCoords();
+      cursorMode = CursorMode.NoSelect;
+  }
 }
 
 function CreateSelectFilter({ items, selectedValue, onSelect }) {
@@ -178,8 +234,10 @@ function createPlanetFilter({
   onlyArtifacts,
   setOnlyArtifacts,
   title,
-  setPlanetRange,
-  planetRange,
+  cursorMode,
+  selectedRectCoordsStr,
+  selectedPlanet,
+  setSelectedPlanet,
 }) {
   const container = {
     // display: 'flex',
@@ -244,44 +302,52 @@ function createPlanetFilter({
     flexDirection: "row",
   };
 
-  const selectRangeButton = html`
-    <${CreateButton}
-      ctaText="Set Range"
-      onClick=${() => {
-        setPlanetRange({ beginCoords: beginCoords, endCoords: endCoords });
-        clearRangeCoords();
-        console.log(planetRange);
-      }}
-    />
-  `;
+  const onSelectSinglePlanet = useCallback(() => {
+    if (cursorMode === CursorMode.SelectSource) {
+      setCursorMode(CursorMode.ResetSource);
+    } else if (cursorMode === CursorMode.SelectTarget) {
+      setCursorMode(CursorMode.ResetTarget);
+    }
+    const planet = ui.getSelectedPlanet();
+    setSelectedPlanet(planet);
+  }, [setSelectedPlanet, ui, cursorMode, setCursorMode]);
 
-  let selectRange = "";
-  if (planetRange.beginCoords && planetRange.endCoords) {
-    selectRange = `Begin:(${planetRange.beginCoords.x}, ${planetRange.beginCoords.y}), 
-          End:(${planetRange.endCoords.x}, ${planetRange.endCoords.y})`;
-  }
+  const onSetPlanetRange = useCallback(() => {
+    // clear selected single planet
+    setSelectedPlanet(null);
+    setCursorMode(cursorMode);
+  }, [cursorMode, setCursorMode, setSelectedPlanet]);
+  const selectedPlanetCoords = selectedPlanet?.location?.coords;
 
   const selectSinglePlanetButton = html`
     <div style=${{ marginLeft: "8px" }}>
-      <${CreateButton} ctaText="Set Selected Planet" onClick=${() => {}} />
+      <${CreateButton}
+        ctaText="Set Selected Planet"
+        onClick=${onSelectSinglePlanet}
+      />
     </div>
   `;
+
+  const selectRangeButton = html`
+    <${CreateButton} ctaText="Set Range" onClick=${onSetPlanetRange} />
+  `;
+
   return html`
     <div style=${container}>
       <div
         style=${{
-          // display: 'inline-block',
           position: "absolute",
           top: "-12px",
           left: "50%",
           right: "50%",
           background: "black",
           // textAlign: "center",
-          padding: "0 16px",
+          padding: "0 8px",
           fontWeight: "bold",
           width: "fit-content",
+          whiteSpace: "nowrap",
           transform: "translate(-50%)",
-          // display: 'flex',
+          // display: 'inline',
         }}
       >
         ${title}
@@ -295,7 +361,16 @@ function createPlanetFilter({
       <div style=${{ ...flexRow, marginTop: "16px" }}>
         ${selectRangeButton} ${selectSinglePlanetButton}
       </div>
-      <div style=${{ marginTop: "8px", height: "16px" }}>${selectRange}</div>
+      <div
+        style=${{
+          marginTop: "8px",
+          height: "16px",
+        }}
+      >
+        ${selectedPlanetCoords
+          ? `Selected Planet Coords: (${selectedPlanetCoords.x}, ${selectedPlanetCoords.y})`
+          : ""}
+      </div>
     </div>
   `;
 }
@@ -307,27 +382,27 @@ function App({}) {
   ]);
   const [sourcePlanetType, setSourcePlanetType] = useState(PLANET_ANY_TYPE);
   const [sourcePlanetEnergyPercent, setSourcePlanetEnergyPercent] =
-    useState(80);
-
-  const [sourcePlanetRange, setSourcePlanetRange] = useState({});
+    useState(75);
+  const [selectedSourcePlanet, setSelectedSourcePlanet] = useState(null);
 
   const [targetPlanetLevels, setTargetPlanetLevels] = useState([
     PlanetLevel.ZERO,
     PlanetLevel.NINE,
   ]);
   const [targetPlanetType, setTargetPlanetType] = useState(PLANET_ANY_TYPE);
+  const [selectedTargetPlanet, setSelectedTargetPlanet] = useState(null);
   const [onlyArtifacts, setOnlyArtifacts] = useState(false);
-  const [targetPlanetRange, setTargetPlanetRange] = useState({});
 
   const onAttack = () => {
     const sourcePlanets = getEligiblePlanets(
       sourcePlanetLevels,
       sourcePlanetType,
-      sourcePlanetRange
+      sourcePlanetRange,
+      selectedSourcePlanet
     );
-    console.log('sourcePlanets', sourcePlanets);
+    console.log("sourcePlanets", sourcePlanets);
 
-    console.log('moves size before', planetMoves.size);
+    console.log("moves size before", planetMoves.size);
     planetMoves.clear();
 
     for (let planet of sourcePlanets) {
@@ -337,7 +412,8 @@ function App({}) {
         onlyArtifacts,
         targetPlanetLevels,
         targetPlanetType,
-        targetPlanetRange
+        targetPlanetRange,
+        selectedTargetPlanet
       );
     }
   };
@@ -346,13 +422,14 @@ function App({}) {
     setSourcePlanetLevels([PlanetLevel.ZERO, PlanetLevel.NINE]);
     setSourcePlanetType(PLANET_ANY_TYPE);
     setSourcePlanetEnergyPercent(80);
+    setSelectedSourcePlanet(null);
 
     setTargetPlanetLevels([PlanetLevel.ZERO, PlanetLevel.NINE]);
     setTargetPlanetType(PLANET_ANY_TYPE);
     setOnlyArtifacts(false);
-    clearRangeCoords();
-    setSourcePlanetRange({});
-    setTargetPlanetRange({});
+    setSelectedTargetPlanet(null);
+
+    setCursorMode(CursorMode.NoSelect);
   }, [
     setSourcePlanetLevels,
     setSourcePlanetType,
@@ -360,9 +437,11 @@ function App({}) {
     setSourcePlanetLevels,
     setTargetPlanetType,
     setOnlyArtifacts,
+    setSelectedSourcePlanet,
+    setSelectedTargetPlanet,
   ]);
 
-  console.log('size', planetMoves.size);
+  console.log("size", planetMoves.size);
   const footer = html`
     <div
       style=${{
@@ -389,12 +468,19 @@ function App({}) {
         ctaText="Reset Filters"
         onClick=${resetFilters}
       />
-      <div>
-        ${`capture ${planetMoves.size} planets`}
-      </div>
+      <div>${`capture ${planetMoves.size} planets`}</div>
     </div>
   `;
 
+  const selectedRectCoords = useCallback((planetRange) => {
+    if (planetRange?.beginCoords && planetRange?.endCoords) {
+      return `Begin:(${planetRange.beginCoords.x}, ${planetRange.beginCoords.y}), 
+          End:(${planetRange.endCoords.x}, ${planetRange.endCoords.y})`;
+    }
+    return "";
+  }, []);
+
+  console.log(selectedRectCoords(sourcePlanetRange));
   return html`<div
       style=${{
         margin: "16px 4px 72px",
@@ -407,8 +493,10 @@ function App({}) {
         setPlanetType=${setSourcePlanetType}
         planetEnergyPercentage=${sourcePlanetEnergyPercent}
         setPlanetEnergyPercentage=${setSourcePlanetEnergyPercent}
-        setPlanetRange=${setSourcePlanetRange}
-        planetRange=${sourcePlanetRange}
+        cursorMode=${CursorMode.SelectSource}
+        selectedRectCoordsStr=${selectedRectCoords(sourcePlanetRange)}
+        selectedPlanet=${selectedSourcePlanet}
+        setSelectedPlanet=${setSelectedSourcePlanet}
         title="Source Planet"
       />
       <div
@@ -423,9 +511,10 @@ function App({}) {
         setPlanetType=${setTargetPlanetType}
         onlyArtifacts=${onlyArtifacts}
         setOnlyArtifacts=${setOnlyArtifacts}
-        targetPlanetRange
-        setPlanetRange=${setTargetPlanetRange}
-        planetRange=${targetPlanetRange}
+        cursorMode=${CursorMode.SelectTarget}
+        selectedRectCoordsStr=${selectedRectCoords(targetPlanetRange)}
+        selectedPlanet=${selectedTargetPlanet}
+        setSelectedPlanet=${setSelectedTargetPlanet}
         title="Target Planet"
       />
     </div>
@@ -434,45 +523,37 @@ function App({}) {
 
 export default class Plugin {
   constructor() {
-    beginCoords = null;
-    endCoords = null;
     this.root = null;
-    this.container = null
+    this.container = null;
 
     df.contractsAPI.contractCaller.queue.invocationIntervalMs = 50;
-    df.contractsAPI.contractCaller.queue.maxConcurrency = 100;
-    df.contractsAPI.txExecutor.queue.invocationIntervalMs = 500 ;
-    df.contractsAPI.txExecutor.queue.maxConcurrency = 7;
-    this.beginXY = document.createElement("div");
-
-    this.endXY = document.createElement("div");
+    df.contractsAPI.contractCaller.queue.maxConcurrency = 50;
+    df.contractsAPI.txExecutor.queue.invocationIntervalMs = 300;
+    df.contractsAPI.txExecutor.queue.maxConcurrency = 1;
   }
-
-  onMouseMove = () => {
-    let coords = ui.getHoveringOverCoords();
-    if (coords) {
-      if (beginCoords == null) {
-        this.beginXY.innerText = `Begin: (${coords.x}, ${coords.y})`;
-        return;
-      }
-
-      if (endCoords == null) {
-        this.endXY.innerText = `End: (${coords.x}, ${coords.y})`;
-        return;
-      }
-    }
-  };
 
   onClick = () => {
     let coords = ui.getHoveringOverCoords();
-    if (coords) {
-      if (beginCoords == null) {
-        beginCoords = coords;
+    if (!coords) return;
+
+    if (cursorMode === CursorMode.SelectSource) {
+      if (sourcePlanetRange.beginCoords == null) {
+        sourcePlanetRange.beginCoords = coords;
         return;
       }
 
-      if (endCoords == null) {
-        endCoords = coords;
+      if (sourcePlanetRange.endCoords == null) {
+        sourcePlanetRange.endCoords = coords;
+        return;
+      }
+    } else if (cursorMode === CursorMode.SelectTarget) {
+      if (targetPlanetRange.beginCoords == null) {
+        targetPlanetRange.beginCoords = coords;
+        return;
+      }
+
+      if (targetPlanetRange.endCoords == null) {
+        targetPlanetRange.endCoords = coords;
         return;
       }
     }
@@ -483,25 +564,22 @@ export default class Plugin {
 
     container.style.width = "450px";
 
-    window.addEventListener("mousemove", this.onMouseMove);
     window.addEventListener("click", this.onClick);
 
     this.root = render(html`<${App} />`, container);
   }
 
-  draw(ctx) {
-    let begin = beginCoords;
-    let end = endCoords || ui.getHoveringOverCoords();
-    if (begin && end) {
-      let beginX = Math.min(begin.x, end.x);
-      let beginY = Math.max(begin.y, end.y);
-      let endX = Math.max(begin.x, end.x);
-      let endY = Math.min(begin.y, end.y);
+  drawRectangle(ctx, coordsA, coordsB, color) {
+    if (coordsA && coordsB) {
+      let beginX = Math.min(coordsA.x, coordsB.x);
+      let beginY = Math.max(coordsA.y, coordsB.y);
+      let endX = Math.max(coordsA.x, coordsB.x);
+      let endY = Math.min(coordsA.y, coordsB.y);
       let width = endX - beginX;
       let height = beginY - endY;
 
       ctx.save();
-      ctx.strokeStyle = "white";
+      ctx.strokeStyle = color;
       ctx.lineWidth = 1;
       ctx.strokeRect(
         viewport.worldToCanvasX(beginX),
@@ -512,22 +590,60 @@ export default class Plugin {
       ctx.restore();
     }
   }
+  draw(ctx) {
+    if (cursorMode === CursorMode.SelectSource) {
+      let begin = sourcePlanetRange.beginCoords;
+      let end = sourcePlanetRange.endCoords || ui.getHoveringOverCoords();
+      this.drawRectangle(ctx, begin, end, "red");
+      this.drawRectangle(
+        ctx,
+        targetPlanetRange.beginCoords,
+        targetPlanetRange.endCoords,
+        "blue"
+      );
+    } else if (cursorMode === CursorMode.SelectTarget) {
+      let begin = targetPlanetRange.beginCoords;
+      let end = targetPlanetRange.endCoords || ui.getHoveringOverCoords();
+      this.drawRectangle(ctx, begin, end, "blue");
+      this.drawRectangle(
+        ctx,
+        sourcePlanetRange.beginCoords,
+        sourcePlanetRange.endCoords,
+        "red"
+      );
+    } else {
+      this.drawRectangle(
+        ctx,
+        sourcePlanetRange.beginCoords,
+        sourcePlanetRange.endCoords,
+        "red"
+      );
+      this.drawRectangle(
+        ctx,
+        targetPlanetRange.beginCoords,
+        targetPlanetRange.endCoords,
+        "blue"
+      );
+    }
+  }
 
   destroy() {
-    window.removeEventListener("mousemove", this.onMouseMove);
     window.removeEventListener("click", this.onClick);
     render(null, this.container, this.root);
   }
 }
 
 class PlanetFilter {
-  planet = null;
   constructor(planet) {
     this.planet = planet;
   }
 
-  notClaimed() {
-    return this.planet.owner === EMPTY_ADDRESS;
+  isLocatable(planet): planet is LocatablePlanet {
+    return (planet as LocatablePlanet).location !== undefined;
+  }
+
+  isOwned() {
+    return this.planet.owner === df.getAccount();
   }
 
   selectedLevels(selectedPlanetLevels) {
@@ -557,8 +673,9 @@ class PlanetFilter {
       x: Math.max(selectedRange.beginCoords.x, selectedRange.endCoords.x),
       y: Math.min(selectedRange.beginCoords.y, selectedRange.endCoords.y),
     };
-    const planetCoords = this.planet.location.coords;
+    const planetCoords = this.planet?.location?.coords;
     return (
+      planetCoords &&
       planetCoords.x >= begin.x &&
       planetCoords.x <= end.x &&
       planetCoords.y <= begin.y &&
@@ -570,16 +687,25 @@ class PlanetFilter {
 function getEligiblePlanets(
   selectedPlanetLevels,
   selectedPlanetType,
-  planetRange
+  planetRange,
+  selectedSourcePlanet
 ) {
-  return df.getMyPlanets().filter((planet) => {
-    const planetFilter = new PlanetFilter(planet);
-    return (
-      planetFilter.selectedType(selectedPlanetType) &&
-      planetFilter.selectedLevels(selectedPlanetLevels) &&
-      planetFilter.inSelectedRange(planetRange)
-    );
-  }).sort((a, b) => b.energy - a.energy);
+  console.log("try to get eligible planets in range", planetRange);
+  if (selectedSourcePlanet) {
+    console.log("single source planet is selected", selectedSourcePlanet);
+    return selectedSourcePlanet;
+  }
+  return df
+    .getMyPlanets()
+    .filter((planet) => {
+      const planetFilter = new PlanetFilter(planet);
+      return (
+        planetFilter.selectedType(selectedPlanetType) &&
+        planetFilter.selectedLevels(selectedPlanetLevels) &&
+        planetFilter.inSelectedRange(planetRange)
+      );
+    })
+    .sort((a, b) => b.energy - a.energy);
 }
 
 function capturePlanets(
@@ -588,7 +714,8 @@ function capturePlanets(
   mustHaveArtifact,
   targetPlanetLevels,
   targetPlanetType,
-  targetPlanetRange
+  targetPlanetRange,
+  selectedTargetPlanet
 ) {
   const planet = df.getPlanetWithId(fromId);
   const from = df.getPlanetWithId(fromId);
@@ -602,22 +729,30 @@ function capturePlanets(
     return;
   }
 
-  const candidates_ = df
-    .getPlanetsInRange(fromId, maxDistributeEnergyPercent)
-    .filter((p) => {
-      const planetFilter = new PlanetFilter(p);
-      return (
-        planetFilter.notClaimed() &&
-        planetFilter.selectedLevels(targetPlanetLevels) &&
-        planetFilter.inSelectedRange(targetPlanetRange) &&
-        planetFilter.selectedType(targetPlanetType) &&
-        planetFilter.mustHaveArtifact(mustHaveArtifact)
-      );
-    })
-    .map((to) => {
-      return [to, distance(from, to)];
-    })
-    .sort((a, b) => b[0].planetLevel - a[0].planetLevel);
+  let candidates_ = [];
+  if (selectedTargetPlanet) {
+    console.log("single target planet is selected", selectedTargetPlanet);
+    candidates_.push(selectedTargetPlanet);
+  } else {
+    console.log("try to capture eligible planets in range", targetPlanetRange);
+    candidates_ = df
+      .getPlanetsInRange(fromId, maxDistributeEnergyPercent)
+      .filter((p) => {
+        const planetFilter = new PlanetFilter(p);
+        return (
+          !planetFilter.isOwned() &&
+          planetFilter.selectedLevels(targetPlanetLevels) &&
+          planetFilter.inSelectedRange(targetPlanetRange) &&
+          planetFilter.selectedType(targetPlanetType) &&
+          planetFilter.mustHaveArtifact(mustHaveArtifact)
+        );
+      })
+      .map((to) => {
+        return [to, distance(from, to)];
+      })
+      .sort((a, b) => b[0].planetLevel - a[0].planetLevel)
+      .map((v) => v[0]);
+  }
 
   let i = 0;
   const energyBudget = Math.floor(
@@ -629,10 +764,13 @@ function capturePlanets(
     const energyLeft = energyBudget - energySpent;
 
     // Remember its a tuple of candidates and their distance
-    const candidate = candidates_[i++][0];
+    const candidate = candidates_[i++];
 
     // Rejected if it is processed before and level < 3
-    if (planetMoves.has(candidate.locationId) && candidate.planetLevel < PlanetLevel.THREE) {
+    if (
+      planetMoves.has(candidate.locationId) &&
+      candidate.planetLevel < PlanetLevel.THREE
+    ) {
       continue;
     }
 
@@ -641,19 +779,31 @@ function capturePlanets(
       .filter((move) => move.to === candidate.locationId);
     const arrivals = getArrivalsForPlanet(candidate.locationId);
 
-    console.log('unconfirmed moves', unconfirmed.length);
+    console.log("unconfirmed moves", unconfirmed.length);
     if (unconfirmed.length + arrivals.length > 4) {
       continue;
     }
 
     const totalUnconfirmedEnergy = unconfirmed.reduce(
       (totalEnergy, nextMove) => totalEnergy + nextMove.forces,
-    0);
+      0
+    );
 
-    const totalArrivingEnergy = arrivals.reduce((totalEnergy, arrival) => totalEnergy + arrival.energyArriving, 0);
+    const totalArrivingEnergy = arrivals.reduce(
+      (totalEnergy, arrival) => totalEnergy + arrival.energyArriving,
+      0
+    );
 
     const energyArriving =
-      candidate.energyCap * 0.02 + candidate.energy * (candidate.defense / 100) - totalArrivingEnergy;
+      candidate.energyCap * 0.02 +
+      candidate.energy * (candidate.defense / 100) -
+      totalArrivingEnergy -
+      totalUnconfirmedEnergy;
+    if (energyArriving < 0) {
+      console.log("energy arriving < 0");
+      console.log("totalUnconfirmedEnergy", totalUnconfirmedEnergy);
+      continue;
+    }
     // needs to be a whole number for the contract
     const energyNeeded = Math.ceil(
       df.getEnergyNeededForMove(fromId, candidate.locationId, energyArriving)
@@ -661,16 +811,24 @@ function capturePlanets(
     // can't destory the planet using left energy
     if (energyLeft - energyNeeded < 0) {
       // move energy left all to high level planets
-      if (candidate.planetLevel >= PlanetLevel.THREE) {
-        const energyArrivingRatioMax = df.getEnergyArrivingForMove(fromId, candidate.locationId, undefined, energyLeft) / from.energyCap;
+      if (candidate.planetLevel >= PlanetLevel.TWO) {
+        const energyArrivingRatioMax =
+          df.getEnergyArrivingForMove(
+            fromId,
+            candidate.locationId,
+            undefined,
+            energyLeft
+          ) / from.energyCap;
         // energy arriving ratio > 10% of energy cap
         if (energyArrivingRatioMax > 0.1) {
+          console.log("left move", fromId, candidate.locationId, energyLeft);
           df.move(fromId, candidate.locationId, energyLeft, 0);
           energySpent += energyLeft;
           planetMoves.add(candidate.locationId);
         }
       }
     } else {
+      console.log("move", fromId, candidate.locationId, energyNeeded);
       df.move(fromId, candidate.locationId, energyNeeded, 0);
       energySpent += energyNeeded;
       planetMoves.add(candidate.locationId);

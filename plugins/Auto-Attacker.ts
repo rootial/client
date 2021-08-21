@@ -7,7 +7,6 @@ import {
   //@ts-ignore
 } from "https://unpkg.com/htm/preact/standalone.module.js";
 
-import { EMPTY_ADDRESS } from "https://cdn.skypack.dev/@darkforest_eth/constants";
 import {
   PlanetLevel,
   LocatablePlanet,
@@ -17,7 +16,7 @@ import {
 // 30 seconds
 let REFRESH_INTERVAL = 1000 * 30;
 // 1 minutes
-let AUTO_INTERVAL = 1000 * 60 * 3;
+let AUTO_INTERVAL = 1000 * 60 * 4;
 
 const CENTER_LOCATION_ID =
   "22e18702c95bef1f3998bf4385760f4ecfbc01ea33295bdc08bebac2689a7c88";
@@ -65,7 +64,7 @@ function AutoButton({ loop, onText, offText }) {
     return () => {
       if (timerId) clearInterval(timerId);
     };
-  }, [isOn]);
+  }, [isOn, loop]);
 
   return html`
     <button style=${button} onClick=${toggle}>
@@ -90,15 +89,47 @@ function isLocatable(planet: Planet): planet is LocatablePlanet {
   return (planet as LocatablePlanet).location !== undefined;
 }
 
-function getArrivalsForPlanet(planetId) {
+function isOwned(planet) {
+  return planet.owner === df.getAccount();
+}
+
+function getArrivalsToPlanet(planetId) {
   return df
     .getAllVoyages()
     .filter((arrival) => arrival.toPlanet === planetId)
     .filter((p) => p.arrivalTime > Date.now() / 1000);
 }
 
+function getUnconfirmedMovesToPlanet(planetId) {
+  return df.getUnconfirmedMoves().filter((move) => move.to === planetId);
+}
+
 function getUnconfirmedMovesFromPlanet(planetId) {
   return df.getUnconfirmedMoves().filter((move) => move.from === planetId);
+}
+
+function getPendingArrivalNumber(planetId) {
+  const unconfirmedMoves = getUnconfirmedMovesToPlanet(planetId);
+
+  const arrivalMoves = getArrivalsToPlanet(planetId);
+
+  return arrivalMoves.length + unconfirmedMoves.length;
+}
+
+function getPendingArrivingEnergy(planetId) {
+  const arrivals = getArrivalsToPlanet(planetId);
+  const unconfirmedMoves = getUnconfirmedMovesToPlanet(planetId);
+
+  const totalUnconfirmedEnergy = unconfirmedMoves.reduce(
+    (totalEnergy, nextMove) => totalEnergy + nextMove.forces,
+    0
+  );
+
+  const totalArrivingEnergy = arrivals.reduce(
+    (totalEnergy, arrival) => totalEnergy + arrival.energyArriving,
+    0
+  );
+  return totalUnconfirmedEnergy + totalArrivingEnergy;
 }
 
 // select nearest planets with specified planet level
@@ -123,24 +154,145 @@ function selectNearestPlanets(
   return candidates.slice(0, numOfPlanets).map((candidate) => candidate[0]);
 }
 
-function getPendingArrivalNumber(locationId) {
-  const unconfirmedMoves = df
-    .getUnconfirmedMoves()
-    .filter((move) => move.to === locationId);
+// find all planets that can reach to locationId using 100% energy
+function getPlanetsCanReachTo(locationId) {
+  const targetPlanet = df.getPlanetWithId(locationId);
+  // only search 25% area that location planet can reach
+  const candidates = df.getPlanetsInRange(locationId, 25);
+  return candidates
+    .filter(
+      (p) =>
+        targetPlanet.planetLevel >= PlanetLevel.ONE &&
+        p.planetLevel === targetPlanet.planetLevel - 1 &&
+        isLocatable(p)
+    )
+    .filter((p) => {
+      // planet can reach location planet with max 100% energy
+      const energyArriving = df.getEnergyArrivingForMove(
+        p.locationId,
+        locationId,
+        undefined,
+        p.energyCap * 0.75
+      );
+      return energyArriving / targetPlanet.energy > 0.1;
+    })
+    .map((p) => [p, df.getDist(p.locationId, locationId)])
+    .sort((a, b) => a[1] - b[1])
+    .map((v) => v[0]);
+}
 
-  const arrivalMoves = getArrivalsForPlanet(locationId);
+function attackPlanet(fromId, toId) {
+  const toPlanet = df.getPlanetWithId(toId);
+  const fromPlanet = df.getPlanetWithId(fromId);
 
-  return arrivalMoves.length + unconfirmedMoves.length;
+  const unconfirmedMoves = getUnconfirmedMovesFromPlanet(fromId);
+  const pendingArrival = getPendingArrivalNumber(toId);
+  if (pendingArrival > 4 || unconfirmedMoves.length > 0) {
+    return;
+  }
+
+  const totalPendingArrivingEnergy = getPendingArrivingEnergy(toId);
+  const energyArriving =
+    toPlanet.energyCap * 0.02 +
+    toPlanet.energy * (toPlanet.defense / 100.0) -
+    totalPendingArrivingEnergy;
+
+  if (energyArriving <= 0) return true;
+
+  const energyNeeded = Math.ceil(
+    df.getEnergyNeededForMove(fromId, toId, energyArriving)
+  );
+
+  if (energyNeeded < fromPlanet.energy) {
+    console.log(
+      "attack from ",
+      fromPlanet,
+      " to planet ",
+      toPlanet,
+      " with enough energy ",
+      energyNeeded
+    );
+    df.move(fromId, toId, energyNeeded, 0);
+  } else {
+    const energyArrivingRatio =
+      df.getEnergyArrivingForMove(fromId, toId, undefined, fromPlanet.energy) /
+      fromPlanet.energyCap;
+    if (energyArrivingRatio > 0.1) {
+      console.log(
+        "attack from ",
+        fromPlanet,
+        " to planet ",
+        toPlanet,
+        " with part energy  ",
+        fromPlanet.energy
+      );
+      df.move(fromId, toId, fromPlanet.energy, 0);
+    }
+  }
+  return false;
+}
+
+function search(targetLocationId) {
+  const targetPlanet = df.getPlanetWithId(targetLocationId)
+  if(isOwned(targetPlanet)) {
+    console.log('target planet is occupied ', targetPlanet);
+    return;
+  }
+  const visited = new Set<string>();
+  const queue = [targetLocationId];
+  while (queue.length > 0) {
+    const toId = queue.shift();
+    const toPlanet = df.getPlanetWithId(toId);
+    visited.add(toId);
+    if (toPlanet === undefined) {
+      console.log(toPlanet);
+    }
+    // occupied then skip
+    if (isOwned(toPlanet)) continue;
+
+    console.log(
+      "search to occupy planet ",
+      toPlanet,
+      ` of level ${toPlanet.planetLevel}`
+    );
+    const candidates = getPlanetsCanReachTo(toId);
+    for (let planet of candidates.slice(0, 5)) {
+      const fromId = planet.locationId;
+      if (visited.has(fromId)) continue;
+
+      // send energy to attack if it's own by myself
+      if (isOwned(planet)) {
+        console.log("try to attack from ", planet, "to planet", toPlanet);
+        const enoughEnergy = attackPlanet(fromId, toId);
+        // sent enough energy to planet then break
+        if (enoughEnergy) {
+          console.log("enough energy sent to planet ", toPlanet);
+          if (toId === targetLocationId) {
+            console.log('target planet should be destoryed');
+            return;
+          }
+          break;
+        }
+      } else if (planet.planetLevel != PlanetLevel.ZERO) {
+        console.log("in queue planetId", fromId);
+        queue.push(fromId);
+      }
+    }
+  }
 }
 
 // attack the nearest planet of same level from given planet
 function attackFromPlanet(fromPlanet, centerLocationId, planetLevelLimit) {
+  const unconfirmedMoves = getUnconfirmedMovesFromPlanet(fromPlanet.locationId);
+  console.log('source planet ', fromPlanet, "unconfirmed moves ", unconfirmedMoves.length);
+  if (unconfirmedMoves.length > 0) return;
+
   const candidates = df
     .getPlanetsInRange(fromPlanet.locationId, 100)
     .filter(
       (p) =>
         p.planetLevel <= planetLevelLimit &&
-        p.owner === EMPTY_ADDRESS &&
+        !isOwned(p) &&
         isLocatable(p)
     )
     .map((p) => [p, df.getDist(p.locationId, centerLocationId)])
@@ -244,6 +396,7 @@ function autoAttack(
     );
     for (let i = 0; i < sourcePlanets.length; i++) {
       const sourcePlanet = sourcePlanets[i];
+
       // for planets behind in the list, allow them to attack planets of planetLeve + 1
       const planetLevelLimit =
         i < sourcePlanets.length / 2 ? planetLevel : planetLevel + 1;
@@ -275,23 +428,36 @@ function App() {
     };
   }, []);
 
-  const onAttack = () => {
+  const onAttack = useCallback(() => {
     console.log("selectedPlanetIds", selectedLocationIds);
-    for (let locationId of selectedLocationIds) {
-      autoAttack(
+
+    autoAttack(
         [
           PlanetLevel.ZERO,
           PlanetLevel.ONE,
           PlanetLevel.TWO,
           PlanetLevel.THREE,
-          PlanetLevel.FOUR,
+        ],
+        NUM_OF_NEAREST_PLANET_SELECTED,
+        MIN_ENERGY_RATIO,
+        CENTER_LOCATION_ID
+    );
+    let i = 0;
+    while(i < selectedLocationIds.length) {
+      const locationId = selectedLocationIds[i++];
+      console.log('try to approach and attack planet', locationId);
+      search(locationId);
+
+      autoAttack(
+        [
+          PlanetLevel.ZERO,
         ],
         NUM_OF_NEAREST_PLANET_SELECTED,
         MIN_ENERGY_RATIO,
         locationId
       );
     }
-  };
+  }, [selectedLocationIds]);
 
   const locationIdsListStyle = {
     maxHeight: "350px",
@@ -304,7 +470,7 @@ function App() {
   );
 
   const addPlanet = (newLocationId) => {
-    setSelectedLocationIds([newLocationId, ...selectedLocationIds]);
+    setSelectedLocationIds([...selectedLocationIds, newLocationId]);
   };
 
   console.log("selected", selectedLocationIds);
@@ -324,6 +490,10 @@ class Plugin {
   constructor() {
     this.root = null;
     this.container = null;
+    df.contractsAPI.contractCaller.queue.invocationIntervalMs = 50;
+    df.contractsAPI.contractCaller.queue.maxConcurrency = 50;
+    df.contractsAPI.txExecutor.queue.invocationIntervalMs = 300 ;
+    df.contractsAPI.txExecutor.queue.maxConcurrency = 1;
   }
 
   async render(container) {

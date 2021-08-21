@@ -367,12 +367,10 @@ class Plugin {
     df._move = df.move;
     df.snarkHelper.setSnarkCacheSize(100);
     df.move = move;
-    this.addSnarker("http://45.32.13.170:8082/move", 2);
-    this.addSnarker('http://149.28.23.88:8082/move', 2);
-    this.addSnarker('http://167.179.74.129:8082/move', 2);
-    this.addSnarker('http://108.160.133.6:8082/move', 2);
-    this.addSnarker('http://45.76.203.234:8082/move', 2);
-    this.addSnarker('http://45.76.220.167:8082/move', 2);
+    // this.addSnarker("http://127.0.0.1:8082/move", 3);
+    this.addSnarker('http://108.160.133.6:8082/move', 3);
+    this.addSnarker('http://45.76.203.234:8082/move', 3);
+    this.addSnarker('http://45.76.220.167:8082/move', 3);
 
   }
 
