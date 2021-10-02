@@ -32,6 +32,7 @@ reading and writing to and from the blockchain.
 - [gettersContract](Backend_GameLogic_ContractsAPI.ContractsAPI.md#getterscontract)
 - [gptCreditContract](Backend_GameLogic_ContractsAPI.ContractsAPI.md#gptcreditcontract)
 - [scoreContract](Backend_GameLogic_ContractsAPI.ContractsAPI.md#scorecontract)
+- [tokensContract](Backend_GameLogic_ContractsAPI.ContractsAPI.md#tokenscontract)
 - [whitelistContract](Backend_GameLogic_ContractsAPI.ContractsAPI.md#whitelistcontract)
 
 ### Methods
@@ -62,6 +63,7 @@ reading and writing to and from the blockchain.
 - [getContractBalance](Backend_GameLogic_ContractsAPI.ContractsAPI.md#getcontractbalance)
 - [getGPTCreditBalance](Backend_GameLogic_ContractsAPI.ContractsAPI.md#getgptcreditbalance)
 - [getGPTCreditPriceEther](Backend_GameLogic_ContractsAPI.ContractsAPI.md#getgptcreditpriceether)
+- [getGasFeeForTransaction](Backend_GameLogic_ContractsAPI.ContractsAPI.md#getgasfeefortransaction)
 - [getPlanetById](Backend_GameLogic_ContractsAPI.ContractsAPI.md#getplanetbyid)
 - [getPlayerArtifacts](Backend_GameLogic_ContractsAPI.ContractsAPI.md#getplayerartifacts)
 - [getPlayerById](Backend_GameLogic_ContractsAPI.ContractsAPI.md#getplayerbyid)
@@ -175,6 +177,16 @@ Don't allow users to submit txs if balance falls below this amount/
 #### Returns
 
 `DarkForestScoringRound3`
+
+---
+
+### tokensContract
+
+• `get` **tokensContract**(): `DarkForestTokens`
+
+#### Returns
+
+`DarkForestTokens`
 
 ---
 
@@ -331,6 +343,10 @@ interaction. To prevent the queued transaction from being submitted, throw an Er
 ### claim
 
 ▸ **claim**(`args`, `action`): `Promise`<`void` \| `TransactionReceipt`\>
+
+DISABLED for round 4
+
+**`todo`** migrate to claim to first-party plugin architecture
 
 #### Parameters
 
@@ -577,6 +593,26 @@ interaction. To prevent the queued transaction from being submitted, throw an Er
 #### Returns
 
 `Promise`<`number`\>
+
+---
+
+### getGasFeeForTransaction
+
+▸ `Private` **getGasFeeForTransaction**(`tx`): `string` \| `AutoGasSetting`
+
+We pass this function into {@link TxExecutor} to calculate what gas fee we should use for the
+given transaction. The result is either a number, measured in gwei, represented as a string, or
+a string representing that we want to use an auto gas setting.
+
+#### Parameters
+
+| Name | Type                |
+| :--- | :------------------ |
+| `tx` | `QueuedTransaction` |
+
+#### Returns
+
+`string` \| `AutoGasSetting`
 
 ---
 

@@ -369,15 +369,6 @@ export function SelectFrom({
   );
 }
 
-export const HoverableTooltip = styled.div`
-  max-width: 400px;
-  background-color: ${dfstyles.colors.blueBackground};
-  border: 1px solid white;
-  border-radius: 2px;
-  padding: 4px 8px;
-  font-size: 12px;
-`;
-
 export const CenterRow = styled.div`
   display: flex;
   justify-content: flex-start;
@@ -410,7 +401,12 @@ export const CenterBackgroundSubtext = styled.div`
  * provided, this is just a normal button.
  */
 export function ShortcutButton(
-  props: { children: React.ReactNode; shortcutKey?: string; shortcutText?: string } & BtnProps
+  props: {
+    children: React.ReactNode;
+    shortcutKey?: string;
+    shortcutText?: string;
+    shortcutDisabled?: boolean;
+  } & BtnProps
 ) {
   const [disableDefaultShortcuts] = useBooleanSetting(
     useUIManager(),
@@ -424,7 +420,11 @@ export function ShortcutButton(
         {props.shortcutKey && !disableDefaultShortcuts && (
           <>
             <EmSpacer width={0.5} />
-            <ShortcutKeyDown shortcutKey={props.shortcutKey} text={props.shortcutText} />
+            <ShortcutKeyDown
+              shortcutKey={props.shortcutKey}
+              text={props.shortcutText}
+              disabled={props.shortcutDisabled}
+            />
           </>
         )}
       </AlignCenterHorizontally>
@@ -479,8 +479,52 @@ export const CenteredText = styled.span`
   text-align: center;
 `;
 
-export function ShortcutKeyDown({ shortcutKey, text }: { shortcutKey?: string; text?: string }) {
-  const isDown = useIsDown(shortcutKey);
+export function ShortcutKeyDown({
+  shortcutKey,
+  text,
+  disabled,
+}: {
+  shortcutKey?: string;
+  text?: string;
+  disabled?: boolean;
+}) {
+  const isDown = useIsDown(shortcutKey) && !disabled;
 
   return <KeyboardBtn active={isDown}>{text === undefined ? shortcutKey : text}</KeyboardBtn>;
 }
+
+/**
+ * Expands to fit the width of container. Is itself a flex box that spreads out its children
+ * horizontally.
+ */
+export const SpreadApart = styled.div`
+  width: 100%;
+  box-sizing: border-box;
+  flex-grow: 1;
+  display: inline-flex;
+  justify-content: space-between;
+  flex-direction: row;
+  align-items: center;
+
+  &:first-child {
+    border-left: none;
+  }
+`;
+
+/**
+ * Expands to fit the width of container. Is itself a flex box that spreads out its children
+ * horizontally.
+ */
+export const Spread = styled.div`
+  width: 100%;
+  box-sizing: border-box;
+  flex-grow: 1;
+  display: inline-flex;
+  justify-content: space-around;
+  flex-direction: row;
+  align-items: center;
+
+  &:first-child {
+    border-left: none;
+  }
+`;

@@ -1,11 +1,7 @@
 import { Artifact, ArtifactType, LocationId } from '@darkforest_eth/types';
 import React, { useCallback } from 'react';
 import { isLocatable } from '../../../_types/global/GlobalTypes';
-import {
-  CenterBackgroundSubtext,
-  PaddedRecommendedModalWidth,
-  Underline,
-} from '../../Components/CoreUI';
+import { CenterBackgroundSubtext, Padded, Underline } from '../../Components/CoreUI';
 import { useAccount, useMyArtifacts, usePlanet, useUIManager } from '../../Utils/AppHooks';
 import { useEmitterValue } from '../../Utils/EmitterHooks';
 import { ModalHandle } from '../../Views/ModalPane';
@@ -97,10 +93,17 @@ export function ManagePlanetArtifactsPane({
 
   let content;
 
+  const inventoryArtifacts = [];
+  for (const a of myArtifacts.value.values()) {
+    if (!a.onPlanetId) {
+      inventoryArtifacts.push(a);
+    }
+  }
+
   if (planet && myArtifacts.value && isLocatable(planet) && account) {
     content = (
       <ManageArtifactsPane
-        artifactsInInventory={Array.from(myArtifacts.value.values())}
+        artifactsInInventory={inventoryArtifacts}
         artifactsOnPlanet={onPlanet}
         planet={planet}
         currentBlockNumber={currentBlockNumber}
@@ -123,5 +126,5 @@ export function ManagePlanetArtifactsPane({
     );
   }
 
-  return <PaddedRecommendedModalWidth>{content}</PaddedRecommendedModalWidth>;
+  return <Padded>{content}</Padded>;
 }

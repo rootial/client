@@ -2,6 +2,7 @@ import { Artifact, artifactNameFromArtifact, Planet } from '@darkforest_eth/type
 import _ from 'lodash';
 import React, { Dispatch, SetStateAction, useCallback, useEffect, useState } from 'react';
 import styled, { css } from 'styled-components';
+import { artifactName } from '../../Backend/Procedural/ArtifactProcgen';
 import { formatNumber } from '../../Backend/Utils/Utils';
 import { Wrapper } from '../../Backend/Utils/Wrapper';
 import { Hook } from '../../_types/global/GlobalTypes';
@@ -9,10 +10,11 @@ import { ArtifactImage } from '../Components/ArtifactImage';
 import { CenteredText, EmSpacer, FullWidth, ShortcutButton, Spacer } from '../Components/CoreUI';
 import { EnergyIcon, SilverIcon } from '../Components/Icons';
 import { LongDash, Sub, Subber } from '../Components/Text';
-import WindowManager, { CursorState } from '../Game/WindowManager';
+import WindowManager, { CursorState, TooltipName } from '../Game/WindowManager';
+import { TooltipTrigger } from '../Panes/Tooltip';
 import dfstyles from '../Styles/dfstyles';
 import { useOnSendCompleted, usePlanetInactiveArtifacts, useUIManager } from '../Utils/AppHooks';
-import { SpecialKey, useIsDown, useOnUp } from '../Utils/KeyEmitters';
+import { useOnUp } from '../Utils/KeyEmitters';
 import { EXIT_PANE, TOGGLE_SEND } from '../Utils/ShortcutConstants';
 import UIEmitter, { UIEmitterEvent } from '../Utils/UIEmitter';
 
@@ -146,13 +148,14 @@ const RowWrapper = styled.div<{ artifacts: Artifact[] }>`
   width: 100%;
   display: flex;
   flex-direction: row;
-  justify-content: ${({ artifacts }) => (artifacts.length > 0 ? 'flex-start' : 'space-around')};
+  justify-content: 'space-around';
   align-items: center;
   overflow-x: scroll;
 `;
 
 const thumbActive = css`
   border: 1px solid ${dfstyles.colors.border};
+  background-color: ${dfstyles.colors.border};
 `;
 
 const StyledArtifactThumb = styled.div<{ active: boolean }>`
@@ -180,7 +183,7 @@ const StyledArtifactThumb = styled.div<{ active: boolean }>`
     cursor: pointer;
 
     & > div {
-      filter: brightness(0.4);
+      filter: brightness(1.2);
     }
   }
 
@@ -204,9 +207,11 @@ function ArtifactThumb({
   }, [setSendArtifact, artifact, sendArtifact]);
 
   return (
-    <StyledArtifactThumb active={sendArtifact?.id === artifact.id} onClick={click}>
-      <ArtifactImage artifact={artifact} thumb size={32} />
-    </StyledArtifactThumb>
+    <TooltipTrigger name={TooltipName.Empty} extraContent={<>{artifactName(artifact)}</>}>
+      <StyledArtifactThumb active={sendArtifact?.id === artifact.id} onClick={click}>
+        <ArtifactImage artifact={artifact} thumb size={32} />
+      </StyledArtifactThumb>
+    </TooltipTrigger>
   );
 }
 
@@ -223,52 +228,32 @@ function SelectArtifactRow({
     <RowWrapper artifacts={inactiveArtifacts}>
       {inactiveArtifacts.length > 0 &&
         inactiveArtifacts.map((a) => (
-          <ArtifactThumb
-            artifact={a}
-            key={a.id}
-            sendArtifact={sendArtifact}
-            setSendArtifact={setSendArtifact}
-          />
+          <>
+            <ArtifactThumb
+              artifact={a}
+              key={a.id}
+              sendArtifact={sendArtifact}
+              setSendArtifact={setSendArtifact}
+            />
+            <EmSpacer width={0.5} />
+          </>
         ))}
       {inactiveArtifacts.length === 0 && <Sub>No movable artifacts!</Sub>}
     </RowWrapper>
   );
 }
 
-const First = styled.span`
-  display: inline-flex;
-  flex-direction: row;
-  justify-content: space-between;
-  width: 100%;
-`;
-
-const Remove = styled.span`
-  color: ${dfstyles.colors.subtext};
-  &:hover {
-    text-decoration: underline;
-    cursor: pointer;
-  }
-`;
-
 function SendRow({
   doSend,
   artifact,
-  remove,
   sending,
 }: {
   doSend: () => void;
   artifact: Artifact | undefined;
-  remove: () => void;
   sending: boolean;
 }) {
   return (
     <>
-      {(artifact && (
-        <First>
-          <Sub>{'sending ' + artifactNameFromArtifact(artifact)} </Sub>
-          <Remove onClick={remove}>don't send</Remove>
-        </First>
-      )) || <></>}
       <FullWidth>
         <ShortcutButton
           wide
@@ -277,7 +262,7 @@ function SendRow({
           style={{ width: '100%' }}
           shortcutKey={TOGGLE_SEND}
         >
-          <CenteredText>Send</CenteredText>
+          <CenteredText>Send {artifact && <>+{artifactNameFromArtifact(artifact)}</>}</CenteredText>
         </ShortcutButton>
       </FullWidth>
     </>
@@ -338,8 +323,6 @@ export function SendResources({
     }
   }, [p, windowManager, uiManager]);
 
-  const shiftDown = useIsDown(SpecialKey.Shift);
-
   useOnUp(TOGGLE_SEND, doSend);
   useOnUp(EXIT_PANE, () => {
     if (!sending) uiManager.selectedPlanetId$.publish(undefined);
@@ -349,27 +332,27 @@ export function SendResources({
     }
   });
 
-  for (let i = 0; i < 10; i++) {
+  // this variable is an array of 10 elements. each element is a key. whenever the user presses a
+  // key, we set the amount of energy that we're sending to be proportional to how late in the array
+  // that key is
+  const energyShortcuts = '1234567890'.split('');
+
+  // same as above, except for silver
+  const silverShortcuts = '!@#$%^&*()'.split('');
+
+  // for each of the above keys, we set up a listener that is triggered whenever that key is
+  // pressed, and sets the corresponding resource sending amount
+  for (let i = 0; i < energyShortcuts.length; i++) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    useOnUp(i + '', () => {
-      let percent = i * 10;
-
-      if (i === 0) {
-        percent = 100;
-      }
-
-      !shiftDown && setEnergyPercent(percent);
-      shiftDown && setSilverPercent(percent);
-    });
+    useOnUp(energyShortcuts[i], () => setEnergyPercent((i + 1) * 10));
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useOnUp(silverShortcuts[i], () => setSilverPercent((i + 1) * 10));
   }
 
-  const setPercent = shiftDown ? setSilverPercent : setEnergyPercent;
-  useOnUp('-', () => {
-    setPercent((p) => _.clamp(p - 10, 0, 100));
-  });
-  useOnUp('+', () => {
-    setPercent((p) => _.clamp(p + 10, 0, 100));
-  });
+  useOnUp('-', () => setEnergyPercent((p) => _.clamp(p - 10, 0, 100)));
+  useOnUp('=', () => setEnergyPercent((p) => _.clamp(p + 10, 0, 100)));
+  useOnUp('_', () => setSilverPercent((p) => _.clamp(p - 10, 0, 100)));
+  useOnUp('+', () => setSilverPercent((p) => _.clamp(p + 10, 0, 100)));
 
   useOnSendCompleted(() => {
     setSending(false);
@@ -402,7 +385,6 @@ export function SendResources({
     uiManager.setArtifactSending(p.value.locationId, sendArtifact);
   }, [sendArtifact, uiManager, p]);
 
-  const removeArtifact = useCallback(() => setSendArtifact(undefined), [setSendArtifact]);
   const artifacts = usePlanetInactiveArtifacts(p, uiManager);
 
   return (
@@ -419,11 +401,11 @@ export function SendResources({
       {p.value && artifacts.length > 0 && (
         <>
           <SelectArtifactRow inactiveArtifacts={artifacts} {...artifactProps} />
-          <EmSpacer height={0.5} />
+          <Spacer height={4} />
         </>
       )}
 
-      <SendRow artifact={sendArtifact} remove={removeArtifact} doSend={doSend} sending={sending} />
+      <SendRow artifact={sendArtifact} doSend={doSend} sending={sending} />
     </StyledSendResources>
   );
 }

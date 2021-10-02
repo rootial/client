@@ -21,7 +21,6 @@
 - [FullWidth](Frontend_Components_CoreUI.md#fullwidth)
 - [HeaderText](Frontend_Components_CoreUI.md#headertext)
 - [Hidden](Frontend_Components_CoreUI.md#hidden)
-- [HoverableTooltip](Frontend_Components_CoreUI.md#hoverabletooltip)
 - [InlineBlock](Frontend_Components_CoreUI.md#inlineblock)
 - [KeyboardBtn](Frontend_Components_CoreUI.md#keyboardbtn)
 - [MaxWidth](Frontend_Components_CoreUI.md#maxwidth)
@@ -34,6 +33,8 @@
 - [Select](Frontend_Components_CoreUI.md#select)
 - [Separator](Frontend_Components_CoreUI.md#separator)
 - [Spacer](Frontend_Components_CoreUI.md#spacer)
+- [Spread](Frontend_Components_CoreUI.md#spread)
+- [SpreadApart](Frontend_Components_CoreUI.md#spreadapart)
 - [TextButton](Frontend_Components_CoreUI.md#textbutton)
 - [Truncate](Frontend_Components_CoreUI.md#truncate)
 - [Underline](Frontend_Components_CoreUI.md#underline)
@@ -162,12 +163,6 @@ Expands to fill space in a flexbox.
 
 ---
 
-### HoverableTooltip
-
-• `Const` **HoverableTooltip**: `StyledComponent`<`"div"`, `any`, `Object`, `never`\>
-
----
-
 ### InlineBlock
 
 • `Const` **InlineBlock**: `StyledComponent`<`"div"`, `any`, `Object`, `never`\>
@@ -246,6 +241,24 @@ way to do this.
 
 ---
 
+### Spread
+
+• `Const` **Spread**: `StyledComponent`<`"div"`, `any`, `Object`, `never`\>
+
+Expands to fit the width of container. Is itself a flex box that spreads out its children
+horizontally.
+
+---
+
+### SpreadApart
+
+• `Const` **SpreadApart**: `StyledComponent`<`"div"`, `any`, `Object`, `never`\>
+
+Expands to fit the width of container. Is itself a flex box that spreads out its children
+horizontally.
+
+---
+
 ### TextButton
 
 • `Const` **TextButton**: `StyledComponent`<`"span"`, `any`, `Object`, `never`\>
@@ -317,9 +330,9 @@ provided, this is just a normal button.
 
 #### Parameters
 
-| Name    | Type                                                                                                                                         |
-| :------ | :------------------------------------------------------------------------------------------------------------------------------------------- |
-| `props` | { `children`: `React.ReactNode` ; `shortcutKey?`: `string` ; `shortcutText?`: `string` } & [`BtnProps`](Frontend_Components_Btn.md#btnprops) |
+| Name    | Type                                                                                                                                                                          |
+| :------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `props` | { `children`: `React.ReactNode` ; `shortcutDisabled?`: `boolean` ; `shortcutKey?`: `string` ; `shortcutText?`: `string` } & [`BtnProps`](Frontend_Components_Btn.md#btnprops) |
 
 #### Returns
 
@@ -333,11 +346,12 @@ provided, this is just a normal button.
 
 #### Parameters
 
-| Name                             | Type     |
-| :------------------------------- | :------- |
-| `__namedParameters`              | `Object` |
-| `__namedParameters.shortcutKey?` | `string` |
-| `__namedParameters.text?`        | `string` |
+| Name                             | Type      |
+| :------------------------------- | :-------- |
+| `__namedParameters`              | `Object`  |
+| `__namedParameters.disabled?`    | `boolean` |
+| `__namedParameters.shortcutKey?` | `string`  |
+| `__namedParameters.text?`        | `string`  |
 
 #### Returns
 
