@@ -26,6 +26,7 @@ import {
   EthAddress,
   LocatablePlanet,
   LocationId,
+  NetworkHealthSummary,
   Planet,
   PlanetLevel,
   PlanetMessageType,
@@ -98,11 +99,13 @@ import {
   SpiralPattern,
   SwissCheesePattern,
   TowardsCenterPattern,
+  TowardsCenterPatternV2,
 } from '../Miner/MiningPatterns';
 import { getConversation, startConversation, stepConversation } from '../Network/ConversationAPI';
 import { eventLogger, EventType } from '../Network/EventLogger';
 import { loadLeaderboard } from '../Network/LeaderboardApi';
 import { addMessage, deleteMessages, getMessagesOnPlanets } from '../Network/MessageAPI';
+import { loadNetworkHealth } from '../Network/NetworkHealthApi';
 import {
   disconnectTwitter,
   getAllTwitters,
@@ -272,6 +275,11 @@ class GameManager extends EventEmitter {
   private scoreboardInterval: ReturnType<typeof setInterval>;
 
   /**
+   * Handle to an interval that periodically refreshes the network's health from our webserver.
+   */
+  private networkHealthInterval: ReturnType<typeof setInterval>;
+
+  /**
    * Manages the process of mining new space territory.
    */
   private minerManager?: MinerManager;
@@ -332,6 +340,12 @@ class GameManager extends EventEmitter {
   private myGPTCredits$: Monomitter<number>;
 
   /**
+   * Emits whenever we load the network health summary from the webserver, which is derived from
+   * diagnostics that the client sends up to the webserver as well.
+   */
+  public networkHealth$: Monomitter<NetworkHealthSummary>;
+
+  /**
    * Diagnostic information about the game.
    */
   private diagnostics: Diagnostics;
@@ -384,7 +398,6 @@ class GameManager extends EventEmitter {
       width: 0,
       height: 0,
     };
-
     this.terminal = terminal;
     this.account = account;
     this.players = players;
@@ -392,6 +405,7 @@ class GameManager extends EventEmitter {
     this.gptCreditPriceEther = gptCreditPriceEther;
     this.myGPTCredits$ = monomitter(true);
     this.gptCreditPriceEtherEmitter$ = monomitter(true);
+    this.networkHealth$ = monomitter(true);
     this.myGPTCredits = myGPTCredits;
     this.myGPTCredits$.publish(myGPTCredits);
     this.playersUpdated$ = monomitter();
@@ -467,6 +481,7 @@ class GameManager extends EventEmitter {
 
     this.diagnosticsInterval = setInterval(this.uploadDiagnostics.bind(this), 10_000);
     this.scoreboardInterval = setInterval(this.refreshScoreboard.bind(this), 10_000);
+    this.networkHealthInterval = setInterval(this.refreshNetworkHealth.bind(this), 10_000);
 
     this.playerInterval = setInterval(() => {
       if (this.account) {
@@ -486,10 +501,19 @@ class GameManager extends EventEmitter {
     });
 
     this.refreshScoreboard();
+    this.refreshNetworkHealth();
   }
 
   private async uploadDiagnostics() {
     eventLogger.logEvent(EventType.Diagnostics, this.diagnostics);
+  }
+
+  private async refreshNetworkHealth() {
+    try {
+      this.networkHealth$.publish(await loadNetworkHealth());
+    } catch (e) {
+      // @todo - what do we do if we can't connect to the webserver
+    }
   }
 
   private async refreshScoreboard() {
@@ -500,7 +524,7 @@ class GameManager extends EventEmitter {
         const player = this.players.get(entry.ethAddress);
         if (player) {
           // current player's score is updated via `this.playerInterval`
-          if (player.address !== this.account) {
+          if (player.address !== this.account && entry.score !== undefined) {
             player.score = entry.score;
           }
         }
@@ -528,6 +552,7 @@ class GameManager extends EventEmitter {
     clearInterval(this.playerInterval);
     clearInterval(this.diagnosticsInterval);
     clearInterval(this.scoreboardInterval);
+    clearInterval(this.networkHealthInterval);
     this.settingsSubscription?.unsubscribe();
   }
 
@@ -564,7 +589,6 @@ class GameManager extends EventEmitter {
 
     await persistentChunkStore.saveTouchedPlanetIds(initialState.allTouchedPlanetIds);
     await persistentChunkStore.saveRevealedCoords(initialState.allRevealedCoords);
-    await persistentChunkStore.saveClaimedCoords(initialState.allClaimedCoords);
 
     const knownArtifacts: Map<ArtifactId, Artifact> = new Map();
 
@@ -619,7 +643,9 @@ class GameManager extends EventEmitter {
       initialState.touchedAndLocatedPlanets,
       new Set(Array.from(initialState.allTouchedPlanetIds)),
       initialState.revealedCoordsMap,
-      initialState.claimedCoordsMap,
+      initialState.claimedCoordsMap
+        ? initialState.claimedCoordsMap
+        : new Map<LocationId, ClaimedCoords>(),
       initialState.worldRadius,
       initialState.arrivals,
       initialState.planetVoyageIdMap,
@@ -839,17 +865,10 @@ class GameManager extends EventEmitter {
     const artifactsOnPlanet = artifactsOnPlanets[0];
 
     const revealedCoords = await this.contractsAPI.getRevealedCoordsByIdIfExists(planetId);
-    const claimedCoords = await this.contractsAPI.getClaimedCoordsByIdIfExists(planetId);
-
     let revealedLocation: RevealedLocation | undefined;
+    let claimedCoords: ClaimedCoords | undefined;
 
-    if (claimedCoords) {
-      revealedLocation = {
-        ...this.locationFromCoords(claimedCoords),
-        revealer: claimedCoords.revealer,
-      };
-      this.getGameObjects().setClaimedLocation(revealedLocation);
-    } else if (revealedCoords) {
+    if (revealedCoords) {
       revealedLocation = {
         ...this.locationFromCoords(revealedCoords),
         revealer: revealedCoords.revealer,
@@ -933,7 +952,7 @@ class GameManager extends EventEmitter {
     this.terminal.current?.printLink(
       `${unminedTx.txHash.slice(0, 6)}`,
       () => {
-        window.open(`${BLOCK_EXPLORER_URL}/tx/${unminedTx.txHash}`);
+        window.open(`${BLOCK_EXPLORER_URL}/${unminedTx.txHash}`);
       },
       TerminalTextStyle.White
     );
@@ -943,31 +962,44 @@ class GameManager extends EventEmitter {
   }
 
   private onTxConfirmed(unminedTx: SubmittedTx) {
+    const notifManager = NotificationManager.getInstance();
     this.terminal.current?.print(`${unminedTx.methodName} transaction (`, TerminalTextStyle.Green);
     this.terminal.current?.printLink(
       `${unminedTx.txHash.slice(0, 6)}`,
       () => {
-        window.open(`${BLOCK_EXPLORER_URL}/tx/${unminedTx.txHash}`);
+        window.open(`${BLOCK_EXPLORER_URL}/${unminedTx.txHash}`);
       },
       TerminalTextStyle.White
     );
     this.terminal.current?.println(`) confirmed`, TerminalTextStyle.Green);
 
     NotificationManager.getInstance().txConfirm(unminedTx);
+
+    const autoClearConfirmAfter = getNumberSetting(
+      this.account,
+      Setting.AutoClearConfirmedTransactionsAfterSeconds
+    );
+
+    if (autoClearConfirmAfter >= 0) {
+      setTimeout(() => {
+        notifManager.clearNotification(unminedTx.actionId);
+      }, autoClearConfirmAfter * 1000);
+    }
   }
 
   private onTxReverted(unminedTx: SubmittedTx) {
+    const notifManager = NotificationManager.getInstance();
     this.terminal.current?.print(`${unminedTx.methodName} transaction (`, TerminalTextStyle.Red);
     this.terminal.current?.printLink(
       `${unminedTx.txHash.slice(0, 6)}`,
       () => {
-        window.open(`${BLOCK_EXPLORER_URL}/tx/${unminedTx.txHash}`);
+        window.open(`${BLOCK_EXPLORER_URL}/${unminedTx.txHash}`);
       },
       TerminalTextStyle.White
     );
-    this.terminal.current?.println(`) reverted`, TerminalTextStyle.Red);
 
-    NotificationManager.getInstance().txRevert(unminedTx);
+    this.terminal.current?.println(`) reverted`, TerminalTextStyle.Red);
+    notifManager.txRevert(unminedTx);
   }
 
   private onTxIntentFail(txIntent: TxIntent, e: Error): void {
@@ -979,6 +1011,17 @@ class GameManager extends EventEmitter {
       TerminalTextStyle.Red
     );
     this.entityStore.clearUnconfirmedTxIntent(txIntent);
+
+    const autoClearRejectAfter = getNumberSetting(
+      this.account,
+      Setting.AutoClearRejectedTransactionsAfterSeconds
+    );
+
+    if (autoClearRejectAfter >= 0) {
+      setTimeout(() => {
+        notifManager.clearNotification(txIntent.actionId);
+      }, autoClearRejectAfter * 1000);
+    }
   }
 
   public getGptCreditPriceEmitter(): Monomitter<number> {
@@ -1290,7 +1333,7 @@ class GameManager extends EventEmitter {
     return {
       myLastClaimTimestamp: myLastClaimTimestamp || undefined,
       currentlyClaiming: !!this.entityStore.getUnconfirmedClaim(),
-      claimCooldownTime: this.contractConstants.CLAIM_PLANET_COOLDOWN,
+      claimCooldownTime: this.contractConstants?.CLAIM_PLANET_COOLDOWN || 0,
     };
   }
 
@@ -1593,7 +1636,9 @@ class GameManager extends EventEmitter {
    */
   async submitVerifyTwitter(twitter: string): Promise<boolean> {
     if (!this.account) return Promise.resolve(false);
-    const success = await verifyTwitterHandle(await this.signMessage({ twitter }));
+    const success = await verifyTwitterHandle(
+      await this.ethConnection.signMessageObject({ twitter })
+    );
     await this.refreshTwitters();
     return success;
   }
@@ -1634,6 +1679,9 @@ class GameManager extends EventEmitter {
 
     if (!myLastClaimTimestamp) {
       return Date.now();
+    }
+    if (!this.contractConstants.CLAIM_PLANET_COOLDOWN) {
+      return 0;
     }
 
     // both the variables in the next line are denominated in seconds
@@ -1898,11 +1946,16 @@ class GameManager extends EventEmitter {
       let d: number;
       let p: number;
 
-      // there is always a fixed area for players to spawn in, set by the contract
-      const spawnInnerRadius = Math.sqrt(
+      // if this.contractConstants.SPAWN_RIM_AREA is non-zero, then players must spawn in that
+      // area, distributed evenly in the inner perimeter of the world
+      let spawnInnerRadius = Math.sqrt(
         Math.max(Math.PI * this.worldRadius ** 2 - this.contractConstants.SPAWN_RIM_AREA, 0) /
           Math.PI
       );
+
+      if (this.contractConstants.SPAWN_RIM_AREA === 0) {
+        spawnInnerRadius = 0;
+      }
 
       do {
         // sample from square
@@ -1914,7 +1967,7 @@ class GameManager extends EventEmitter {
         p >= initPerlinMax || // keep searching if above or equal to the max
         p < initPerlinMin || // keep searching if below the minimum
         d >= this.worldRadius || // can't be out of bound
-        d <= spawnInnerRadius // can't be inside spawn percentage ring
+        d <= spawnInnerRadius // can't be inside spawn area ring
       );
 
       // when setting up a new account in development mode, you can tell
@@ -2429,7 +2482,7 @@ class GameManager extends EventEmitter {
       p.unconfirmedClearEmoji = true;
     });
 
-    const request = await this.signMessage({
+    const request = await this.ethConnection.signMessageObject({
       locationId,
       ids: this.getPlanetWithId(locationId)?.messages?.map((m) => m.id) || [],
     });
@@ -2449,7 +2502,7 @@ class GameManager extends EventEmitter {
   }
 
   public async submitDisconnectTwitter(twitter: string) {
-    await disconnectTwitter(await this.signMessage({ twitter }));
+    await disconnectTwitter(await this.ethConnection.signMessageObject({ twitter }));
     await this.refreshTwitters();
   }
 
@@ -2475,7 +2528,7 @@ class GameManager extends EventEmitter {
       p.unconfirmedAddEmoji = true;
     });
 
-    const request = await this.signMessage({
+    const request = await this.ethConnection.signMessageObject({
       locationId,
       sender: this.account,
       type,
@@ -2494,24 +2547,6 @@ class GameManager extends EventEmitter {
     }
 
     await this.refreshServerPlanetStates([locationId]);
-  }
-
-  /**
-   * Returns a signed version of this message.
-   */
-  private async signMessage<T>(obj: T): Promise<SignedMessage<T>> {
-    if (!this.account) {
-      throw new Error('not logged in');
-    }
-
-    const stringified = JSON.stringify(obj);
-    const signature = await this.ethConnection.signMessage(stringified);
-
-    return {
-      signature,
-      sender: this.account,
-      message: obj,
-    };
   }
 
   /**
@@ -2955,10 +2990,20 @@ class GameManager extends EventEmitter {
     if (!planet) throw new Error('planet unknown');
     if (!isLocatable(planet)) throw new Error('planet location unknown');
 
-    return this.getGameObjects().getPlanetsInWorldCircle(
-      planet.location.coords,
-      getRange(planet, sendingPercent)
-    );
+    // Performance improvements originally suggested by [@modokon](https://github.com/modukon)
+    // at https://github.com/darkforest-eth/client/issues/15
+    // Improved by using `planetMap` by [@phated](https://github.com/phated)
+    const result = [];
+    const range = getRange(planet, sendingPercent);
+    for (const p of this.getPlanetMap().values()) {
+      if (isLocatable(p)) {
+        if (this.getDistCoords(planet.location.coords, p.location.coords) < range) {
+          result.push(p);
+        }
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -3117,6 +3162,7 @@ class GameManager extends EventEmitter {
       SpiralPattern,
       SwissCheesePattern,
       TowardsCenterPattern,
+      TowardsCenterPatternV2,
     };
   }
 
@@ -3216,6 +3262,10 @@ class GameManager extends EventEmitter {
     return this.ethConnection.loadContract(contractAddress, async (address, provider, signer) =>
       createContract<T>(address, contractABI, provider, signer)
     );
+  }
+
+  public testNotification() {
+    NotificationManager.getInstance().reallyLongNotification();
   }
 
   /**

@@ -168,7 +168,7 @@ function HelpContent() {
         The table is interactive, and allows you to sort the planets by clicking each column's
         header. You can also navigate to a planet that you own by clicking on its name. The planet
         you click will be centered at the spot on the screen where the current planet you have
-        selected is centered.
+        selected is located.
       </p>
     </div>
   );
@@ -192,6 +192,7 @@ export function PlanetDexPane({ hook }: { hook: ModalHook }) {
   // refresh planets every 10 seconds
   useEffect(() => {
     if (!uiManager) return;
+    if (!visible) return;
 
     const refreshPlanets = () => {
       if (!uiManager) return;
@@ -208,7 +209,7 @@ export function PlanetDexPane({ hook }: { hook: ModalHook }) {
     return () => {
       clearInterval(intervalId);
     };
-  }, [uiManager]);
+  }, [visible, uiManager]);
 
   const headers = ['', 'Planet Name', 'Level', 'Energy', 'Silver', 'Artifacts', 'Prospect', 'Find'];
   const alignments: Array<'r' | 'c' | 'l'> = ['r', 'l', 'r', 'r', 'r', 'r', 'r', 'r'];

@@ -1,4 +1,3 @@
-import { RECOMMENDED_MODAL_WIDTH } from '@darkforest_eth/constants';
 import { LocationId, Planet, PlanetType, UpgradeBranchName } from '@darkforest_eth/types';
 import React from 'react';
 import styled from 'styled-components';
@@ -41,8 +40,8 @@ export function UpgradeDetailsPaneHelpContent() {
       </p>
       <Spacer height={8} />
       <p>
-        All planets have a certain max rank, and only you to upgrade each of the upgrade branches
-        only to a certain rank.
+        All planets have a certain max rank, and each branch can only be upgraded so many times.
+        Choose wisely!
       </p>
     </div>
   );
@@ -82,7 +81,7 @@ export function UpgradeDetailsPane({
   const planetAtMaxRank = isFullRank(planet);
 
   let content = (
-    <CenterBackgroundSubtext width={RECOMMENDED_MODAL_WIDTH} height='100px'>
+    <CenterBackgroundSubtext width={'100%'} height='100px'>
       Select a Planet <br /> You Own
     </CenterBackgroundSubtext>
   );
@@ -91,7 +90,7 @@ export function UpgradeDetailsPane({
     if (planet.owner !== account) {
     } else if (planet.planetType !== PlanetType.PLANET || planet.silverCap === 0) {
       content = (
-        <CenterBackgroundSubtext width={RECOMMENDED_MODAL_WIDTH} height='100px'>
+        <CenterBackgroundSubtext width={'100%'} height='100px'>
           This Planet <br /> is not Upgradeable
         </CenterBackgroundSubtext>
       );
